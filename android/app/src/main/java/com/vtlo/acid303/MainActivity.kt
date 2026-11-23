@@ -47,6 +47,7 @@ class MainActivity : Activity(), ScreenHost {
 
     private lateinit var screens: List<InstrumentScreen>
     private lateinit var pager: PagerLayout
+    private val decks = arrayOfNulls<PadDeck>(PAGES.size)
     private val tabs = ArrayList<PadButton>()
     private val partButtons = ArrayList<PadButton>()
     private lateinit var orientationButton: PadButton
@@ -69,6 +70,7 @@ class MainActivity : Activity(), ScreenHost {
                 screens.forEach { it.onTransportChanged(playing) }
             }
             screens[pager.currentPage].onFrame(playing)
+            decks[pager.currentPage]?.onFrame(playing)
             Choreographer.getInstance().postFrameCallback(this)
         }
     }
@@ -155,9 +157,22 @@ class MainActivity : Activity(), ScreenHost {
         column.addView(strip(isLandscape()))
         pager = PagerLayout(this).apply {
             val landscape = isLandscape()
-            screens.forEach { addView(it.build(landscape)) }
+            screens.forEachIndexed { i, screen ->
+                val page = screen.build(landscape)
+                if (i < app.engine.parts.size) {
+                    // Every instrument page can show a 16-pad deck below it, hidden until asked for.
+                    val deck = PadDeck(this@MainActivity, app, i, landscape, app.prefs().getBoolean("deck_$i", false)) { open ->
+                        app.prefs().edit().putBoolean("deck_$i", open).apply()
+                    }
+                    decks[i] = deck
+                    addView(deck.wrap(page))
+                } else {
+                    addView(page)
+                }
+            }
             onPageChanged = { p ->
                 screens[p].refreshAll()
+                decks[p]?.refresh()
                 refreshStrip()
             }
         }

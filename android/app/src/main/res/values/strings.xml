@@ -3,6 +3,10 @@
     <string name="app_name">VTLO 3O3</string>
     <string name="subtitle">COMPUTER CONTROLLED  ·  BASS LINE</string>
     <string name="subtitle_n">COMPUTER CONTROLLED  ·  BASS LINE %1$d</string>
+    <string name="deck_open">▲  PADS</string>
+    <string name="deck_close">▼  PADS</string>
+    <string name="deck_open_description">Show the 16 pads and loop recorder</string>
+    <string name="deck_close_description">Hide the 16 pads and loop recorder</string>
     <string name="fx_title">VTLO FX</string>
     <string name="fx_subtitle">MASTER EFFECTS  ·  IN CHAIN ORDER</string>
     <string name="fx_all_off">ALL OFF</string>

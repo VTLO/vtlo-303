@@ -63,6 +63,8 @@ class Studio(private val dataDir: File, val sampleRate: Int = pickOutputRate()) 
             part.on = (props.getProperty("part.$name") ?: props.getProperty("part${LEGACY_ORDER.indexOf(name)}") ?: "true").toBoolean()
         }
         restoreFx()
+        engine.parts.forEachIndexed { i, part -> props.getProperty("pads.${PART_NAMES[i]}")?.let(part.loop::load) }
+        engine.click = props.getProperty("click").toBoolean()
         output = AudioOutput(engine, sampleRate)
     }
 
@@ -130,8 +132,12 @@ class Studio(private val dataDir: File, val sampleRate: Int = pickOutputRate()) 
             p["sampler.p$pad.name"] = sampler.padNames[pad]
         }
         engine.parts.forEachIndexed { i, part -> p["part.${PART_NAMES[i]}"] = part.on.toString() }
+        engine.parts.forEachIndexed { i, part -> p["pads.${PART_NAMES[i]}"] = part.loop.serialize() }
+        p["click"] = engine.click.toString()
         engine.fx.effects.forEach { e ->
             p["fx.${e.id.key}.on"] = e.on.toString()
+            p["fx.${e.id.key}.sync"] = e.sync.toString()
+            p["fx.${e.id.key}.div"] = e.getDivision().toString()
             e.params.forEachIndexed { i, param -> p["fx.${e.id.key}.${param.key}"] = e.get(i).toString() }
         }
 
@@ -147,6 +153,8 @@ class Studio(private val dataDir: File, val sampleRate: Int = pickOutputRate()) 
         engine.fx.effects.forEach { e ->
             e.params.forEachIndexed { i, param -> e.set(i, f("fx.${e.id.key}.${param.key}", param.default)) }
             e.on = props.getProperty("fx.${e.id.key}.on").toBoolean()
+            e.sync = e.syncable && props.getProperty("fx.${e.id.key}.sync").toBoolean()
+            e.setDivision(f("fx.${e.id.key}.div", 0.5f))
         }
     }
 

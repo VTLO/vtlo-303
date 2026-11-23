@@ -65,6 +65,12 @@ class AcidEngine(val sampleRate: Int) : SequencerEngine {
 
     private val fs = sampleRate.toDouble()
     private val voice = Voice303(fs)
+
+    // A second voice for notes played from the pads, so they never fight with the step sequencer
+    // (which silences its voice on every rest step). Rendered only while it can be heard.
+    private val padVoice = Voice303(fs)
+    private var padLive = false
+    private var padReleaseLeft = 0
     private val drive = Overdrive(fs)
     private val delay = PingPongDelay(fs)
     private val reverb = FdnReverb(fs)
@@ -97,6 +103,10 @@ class AcidEngine(val sampleRate: Int) : SequencerEngine {
     fun previewNoteOn(note: Int, accent: Boolean) = post(CMD_NOTE_ON, note or (if (accent) 0x100 else 0))
     fun previewNoteOff() = post(CMD_NOTE_OFF, 0)
 
+    /** A note from the pads: sounds whether or not the sequencer runs, on its own voice. */
+    fun padNoteOn(note: Int, accent: Boolean) = post(CMD_PAD_ON, note or (if (accent) 0x100 else 0))
+    fun padNoteOff() = post(CMD_PAD_OFF, 0)
+
     private fun post(cmd: Int, arg: Int) {
         val w = qWrite.get()
         if (w - qRead.get() >= QUEUE_SIZE) return // queue full: drop, UI will retry on next gesture
@@ -125,19 +135,34 @@ class AcidEngine(val sampleRate: Int) : SequencerEngine {
                     isPlaying = false
                     currentStep = -1
                     voice.noteOff()
+                    releasePadVoice()
                 }
                 CMD_PANIC -> {
                     isPlaying = false
                     currentStep = -1
                     voice.reset()
+                    padVoice.reset()
+                    padLive = false
                     delay.clear()
                     reverb.clear()
                 }
                 CMD_NOTE_ON -> if (!isPlaying) voice.noteOn(arg and 0x7f, arg and 0x100 != 0, false)
                 CMD_NOTE_OFF -> if (!isPlaying) voice.noteOff()
+                CMD_PAD_ON -> {
+                    padVoice.noteOn(arg and 0x7f, arg and 0x100 != 0, false)
+                    padLive = true
+                    padReleaseLeft = 0
+                }
+                CMD_PAD_OFF -> releasePadVoice()
             }
         }
         qRead.set(r)
+    }
+
+    private fun releasePadVoice() {
+        if (!padLive) return
+        padVoice.noteOff()
+        padReleaseLeft = (0.25 * fs).toInt() // the amplitude release is only a few ms; keep rendering briefly
     }
 
     /** Renders [frames] interleaved stereo frames into [out]. */
@@ -163,6 +188,16 @@ class AcidEngine(val sampleRate: Int) : SequencerEngine {
             voice.decay = smooth[Param.DECAY.ordinal]
             voice.accent = smooth[Param.ACCENT.ordinal]
             voice.tuneSemitones = (smooth[Param.TUNE.ordinal] - 0.5) * 24.0
+            if (padLive) {
+                padVoice.cutoff = voice.cutoff
+                padVoice.resonance = voice.resonance
+                padVoice.envMod = voice.envMod
+                padVoice.decay = voice.decay
+                padVoice.accent = voice.accent
+                padVoice.tuneSemitones = voice.tuneSemitones
+                padVoice.waveform = voice.waveform
+                if (padReleaseLeft > 0 && --padReleaseLeft == 0) padLive = false
+            }
 
             if (isPlaying) {
                 if (samplesToNextStep <= 0.0) {
@@ -183,6 +218,7 @@ class AcidEngine(val sampleRate: Int) : SequencerEngine {
             }
 
             var x = voice.render()
+            if (padLive) x += padVoice.render()
             x = drive.process(x, smooth[Param.DRIVE.ordinal])
 
             val delayMix = smooth[Param.DELAY.ordinal]
@@ -233,5 +269,7 @@ class AcidEngine(val sampleRate: Int) : SequencerEngine {
         private const val CMD_PANIC = 3
         private const val CMD_NOTE_ON = 4
         private const val CMD_NOTE_OFF = 5
+        private const val CMD_PAD_ON = 6
+        private const val CMD_PAD_OFF = 7
     }
 }

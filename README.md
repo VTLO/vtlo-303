@@ -46,6 +46,16 @@ for the first time you press REC.
   start with empty patterns, so the mix is unchanged until you program them.
 - **FX page**: six master effects in series on the whole mix, each with an ON
   switch and four knobs, saved with the rest of the state (see below).
+- **Pad deck** (optional, per page): the slim `▲ PADS` handle under BASS 1/2,
+  DRUMS 1/2 and SAMPLER opens a 4 x 4 grid of rubber pads styled after a hardware
+  clip controller (cream body, red inline wordmark, a "VTLO Mod. V2.0" nameplate).
+  Play the instrument by hand (drums and sampler: pads 1-8 are the tracks, 9-16 the
+  same with accent; bass: chromatic notes, OCT -/+ to move the range). Arm **REC**
+  and tap a rhythm in: the first tap starts the transport and fills a **loop of
+  8 or 16 bars** locked to the tempo, overdubbing on every lap. QUANT snaps taps to
+  16ths, LOOP mutes or plays the recorded loop, UNDO removes the last pass, CLEAR
+  empties it, CLICK adds a metronome. Each instrument has its own loop, saved with
+  the rest of the state; hidden or shown per page. Playback is sample-accurate.
 - Orientation option in the top bar: LANDSCAPE (default), PORTRAIT or AUTO
   ROTATE, remembered between launches. Landscape fits every control of a
   screen on one display, scaled to the window; portrait scrolls. Large screens
@@ -136,6 +146,12 @@ and each switches in and out with a short crossfade.
 | **Chorus** | Three detuned voices per channel with Hermite-interpolated delays | RATE, DEPTH, SPREAD, MIX |
 | **Ghost** *(original)* | Reverse echoes: overlapping windowed grains read the signal backwards, fed back so repeats reverse again | TIME, FEEDBACK, TONE, MIX |
 
+**Tempo sync.** Each effect except Beat Repeat (always locked) has a SYNC switch. With
+it on, the speed or time knob (RATE, or TIME for Ghost) becomes a note-length selector
+(8 bars down to 1/16 for the sweeps; 1/16 to 1/2 for Ghost's echo) and the LFOs lock
+to the transport position, so every sweep starts on a bar line. The free value and the
+note length are remembered separately, so switching loses nothing.
+
 The effects apply live to the master bus; WAV exports render each instrument on its own, without them.
 
 ### Emblem
@@ -154,7 +170,7 @@ Ready-to-install builds, committed to the repository (checksums in `SHA256SUMS`)
 |---|---|
 | Android 8.0+ (APK) | `VTLO-3O3-android.apk` |
 | Windows 10/11 x64 installer | `VTLO-3O3-Setup-windows-x64.exe` |
-| Linux, Debian/Ubuntu (`sudo apt install ./vtlo-3o3_1.1.0_amd64.deb`) | `vtlo-3o3_1.1.0_amd64.deb` |
+| Linux, Debian/Ubuntu (`sudo apt install ./vtlo-3o3_1.2.0_amd64.deb`) | `vtlo-3o3_1.2.0_amd64.deb` |
 | Linux, any distribution (unpack and run) | `VTLO-3O3-linux-x64.tar.gz` |
 | Browser version for Windows and Linux (launchers included) | `VTLO-303-web-windows-linux.zip` |
 
@@ -177,6 +193,8 @@ third-party libraries.
   (built with `jpackage`). Unzip anywhere and run; nothing to install.
 - **Keys**: Space run/stop, Tab next screen (F1–F6 jump), Esc panic; bass line
   keyboard on Z S X D C V G B H N J M , ; sampler pads on Q W E R / A S D F.
+  With a pad deck open, `1 2 3 4` / `Q W E R` / `A S D F` / `Z X C V` play its pads (top row
+  to bottom row, several keys at once) instead of the page's own keys.
   Right-click a step for gate (bass) or accent (drums, sampler); knobs take
   drag, mouse wheel, and double-click to reset.
 - Sampler loads WAV, AIFF and AU and records from the default microphone.

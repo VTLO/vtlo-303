@@ -14,6 +14,7 @@ class FxScreen(host: Host) : Screen(host) {
 
     private val bound = ArrayList<Bound>()
     private val toggles = HashMap<Effect, Pad>()
+    private val syncs = HashMap<Effect, Pad>()
     private val run: Pad
 
     init {
@@ -35,14 +36,21 @@ class FxScreen(host: Host) : Screen(host) {
             val x = 8f + (n % 3) * (pw + 9f)
             val y = top + (n / 3) * (ph + 8f)
             add(PanelBox { fx.id.label }, x, y, pw, ph)
-            add(TextBox({ fx.id.blurb }, 9.5f, Colors.panelEdge, bold = false), x + 12f, y + 24f, pw - 100f, 16f)
+            add(TextBox({ fx.id.blurb }, 9.5f, Colors.panelEdge, bold = false), x + 12f, y + 40f, pw - 24f, 16f)
+            syncs[fx] = add(Pad("SYNC", led = true, dark = false,
+                hint = if (fx.alwaysSynced) "${fx.id.label} is always locked to the tempo" else "Lock ${fx.id.label} to the tempo (the rate knob picks a note length)") {
+                if (!fx.alwaysSynced) {
+                    fx.sync = !fx.sync
+                    refreshSync(fx)
+                }
+            }.also { if (fx.alwaysSynced) it.active = true }, x + pw - 154f, y + 6f, 66f, 32f)
             toggles[fx] = add(Pad("OFF", led = true, hint = "Switch ${fx.id.label} on or off") {
                 fx.on = !fx.on
                 refreshToggle(fx)
             }, x + pw - 84f, y + 6f, 74f, 32f)
             fx.params.forEachIndexed { i, p ->
-                val knob = Knob(p.label, p.default, p.format, { v -> fx.set(i, v) }, p.detents)
-                bound.add(Bound(fx, i, add(knob, x + 9f + i * 76f, y + 46f, 76f, 150f)))
+                val knob = Knob(p.label, p.default, { v -> fx.knobText(i, v) }, { v -> fx.setFromKnob(i, v) }, p.detents)
+                bound.add(Bound(fx, i, add(knob, x + 9f + i * 76f, y + 56f, 76f, 150f)))
             }
         }
     }
@@ -68,6 +76,16 @@ class FxScreen(host: Host) : Screen(host) {
 
     private fun bpm() = Param.normToBpm(host.studio.bass.get(Param.TEMPO)).roundToInt()
 
+    /** Updates the SYNC switch and turns the rate knob into a division selector (or back). */
+    private fun refreshSync(fx: Effect) {
+        if (!fx.alwaysSynced) syncs[fx]?.active = fx.sync
+        bound.filter { it.fx === fx }.forEach {
+            it.knob.detents = fx.knobDetents(it.index)
+            it.knob.default = fx.knobDefault(it.index)
+            it.knob.set(fx.knobValue(it.index))
+        }
+    }
+
     private fun refreshToggle(fx: Effect) {
         toggles[fx]?.apply {
             active = fx.on
@@ -76,7 +94,7 @@ class FxScreen(host: Host) : Screen(host) {
     }
 
     override fun refresh() {
-        bound.forEach { it.knob.set(it.fx.get(it.index)) }
+        rack.effects.forEach(::refreshSync)
         rack.effects.forEach(::refreshToggle)
         run.active = host.playing
         run.text = if (host.playing) "STOP" else "RUN"

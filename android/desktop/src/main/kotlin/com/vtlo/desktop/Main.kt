@@ -28,6 +28,8 @@ fun main(args: Array<String>) {
             listOf("bass", "bass2", "drums", "drums2", "sampler", "fx").forEachIndexed { i, name ->
                 ImageIO.write(window.snapshot(1600, 992, i), "png", File(shots, "desktop-$name.png"))
             }
+            ImageIO.write(window.snapshot(1600, 1316, 2, deckOpen = true), "png", File(shots, "desktop-deck-drums.png"))
+            ImageIO.write(window.snapshot(1600, 1316, 0, deckOpen = true), "png", File(shots, "desktop-deck-bass.png"))
             listOf(0, 3).forEach { g -> ImageIO.write(window.snapshot(1600, 992, 0, guidePage = g), "png", File(shots, "desktop-guide-$g.png")) }
             exitProcess(0)
         }

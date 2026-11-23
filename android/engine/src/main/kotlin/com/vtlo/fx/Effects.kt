@@ -56,6 +56,32 @@ internal class DelayLine(maxDelaySamples: Int) {
 
 private fun smoothing(fs: Int, seconds: Float) = 1f - exp(-1f / (seconds * fs))
 
+/**
+ * An LFO phase in cycles (0..1). Free-running it advances at a rate in Hz; synced it is
+ * derived from the transport position, so every cycle starts on a note boundary and the
+ * sweep restarts with the loop.
+ */
+internal class LfoClock {
+    var phase = 0.0
+        private set
+
+    /** The phase at frame [f] of the block ([steps] frames advance a free-running LFO). */
+    fun next(synced: Boolean, beat: Double, f: Int, beatsPerSample: Double, divBeats: Double, hz: Double, fs: Int, steps: Int = 1): Double {
+        if (synced) {
+            val x = (beat + f * beatsPerSample) / divBeats
+            phase = x - floor(x)
+        } else {
+            phase += hz * steps / fs
+            if (phase >= 1.0) phase -= floor(phase)
+        }
+        return phase
+    }
+
+    fun reset() {
+        phase = 0.0
+    }
+}
+
 // ─── Flanger ─────────────────────────────────────────────────
 
 /** Swept comb filter: a short modulated delay mixed with the dry signal, with feedback. */
@@ -68,19 +94,23 @@ class Flanger(fs: Int) : Effect(
         FxParam("mix", "MIX", 0.6f, format = ::pct),
     ),
     fs,
+    Divisions.CYCLES, 0, 3f / 7f,
 ) {
     private val dl = DelayLine((0.008 * fs).toInt())
     private val dr = DelayLine((0.008 * fs).toInt())
-    private var phase = 0.0
+    private val clock = LfoClock()
     private var mixS = Float.NaN
     private val ms = smoothing(fs, 0.01f)
 
     override fun reset() {
-        dl.clear(); dr.clear(); phase = 0.0; mixS = Float.NaN
+        dl.clear(); dr.clear(); clock.reset(); mixS = Float.NaN
     }
 
-    override fun process(buf: FloatArray, frames: Int, bpm: Float) {
-        val inc = TWO_PI * rateHz(p(0)) / fs
+    override fun process(buf: FloatArray, frames: Int, bpm: Float, beat: Double) {
+        val synced = sync
+        val hz = rateHz(p(0)).toDouble()
+        val divBeats = if (synced) division().beats.toDouble() else 1.0
+        val bps = bpm / 60.0 / fs
         val depth = p(1)
         val centre = 0.4f + 2.2f * depth // ms
         val swing = 0.35f + 1.8f * depth
@@ -91,10 +121,9 @@ class Flanger(fs: Int) : Effect(
         var i = 0
         for (f in 0 until frames) {
             mixS += (mix - mixS) * ms
-            val lfoL = sin(phase).toFloat()
-            val lfoR = sin(phase + PI / 2).toFloat()
-            phase += inc
-            if (phase > TWO_PI) phase -= TWO_PI
+            val ph = TWO_PI * clock.next(synced, beat, f, bps, divBeats, hz, fs)
+            val lfoL = sin(ph).toFloat()
+            val lfoR = sin(ph + PI / 2).toFloat()
             val xl = buf[i]
             val xr = buf[i + 1]
             val wl = dl.read((centre + swing * lfoL) * msToSamples)
@@ -125,19 +154,23 @@ class Chorus(fs: Int) : Effect(
         FxParam("mix", "MIX", 0.5f, format = ::pct),
     ),
     fs,
+    Divisions.CYCLES, 0, 3f / 7f,
 ) {
     private val dl = DelayLine((0.04 * fs).toInt())
     private val dr = DelayLine((0.04 * fs).toInt())
-    private var phase = 0.0
+    private val clock = LfoClock()
     private var mixS = Float.NaN
     private val ms = smoothing(fs, 0.01f)
 
     override fun reset() {
-        dl.clear(); dr.clear(); phase = 0.0; mixS = Float.NaN
+        dl.clear(); dr.clear(); clock.reset(); mixS = Float.NaN
     }
 
-    override fun process(buf: FloatArray, frames: Int, bpm: Float) {
-        val inc = TWO_PI * rateHz(p(0)) / fs
+    override fun process(buf: FloatArray, frames: Int, bpm: Float, beat: Double) {
+        val synced = sync
+        val hz = rateHz(p(0)).toDouble()
+        val divBeats = if (synced) division().beats.toDouble() else 1.0
+        val bps = bpm / 60.0 / fs
         val depthMs = 0.3f + p(1) * 4.5f
         val spread = p(2) * PI
         val mix = p(3)
@@ -150,6 +183,7 @@ class Chorus(fs: Int) : Effect(
             val xr = buf[i + 1]
             dl.write(xl)
             dr.write(xr)
+            val phase = TWO_PI * clock.next(synced, beat, f, bps, divBeats, hz, fs)
             var wl = 0f
             var wr = 0f
             for (v in 0 until 3) {
@@ -158,8 +192,6 @@ class Chorus(fs: Int) : Effect(
                 wl += dl.read((base + depthMs * sin(ph).toFloat()) * msToSamples)
                 wr += dr.read((base + depthMs * sin(ph + spread).toFloat()) * msToSamples)
             }
-            phase += inc
-            if (phase > TWO_PI) phase -= TWO_PI
             buf[i] = xl * (1f - 0.5f * mixS) + wl * (0.3f * mixS)
             buf[i + 1] = xr * (1f - 0.5f * mixS) + wr * (0.3f * mixS)
             i += 2
@@ -192,6 +224,7 @@ class BeatRepeat(fs: Int) : Effect(
     private class Grid(val label: String, val beats: Float)
 
     override val selfBypass: Boolean get() = true
+    override val alwaysSynced: Boolean get() = true
 
     private val size = (3.2 * fs).toInt()
     private val ringL = FloatArray(size)
@@ -211,7 +244,7 @@ class BeatRepeat(fs: Int) : Effect(
         w = 0; active = false; env = 0f; t = 0; gain = 1f
     }
 
-    override fun process(buf: FloatArray, frames: Int, bpm: Float) {
+    override fun process(buf: FloatArray, frames: Int, bpm: Float, beat: Double) {
         if (on && !active) {
             val beat = fs * 60f / bpm.coerceIn(30f, 300f)
             len = (beat * GRIDS[Math.round(p(0) * 4)].beats).toInt().coerceIn(64, size - 1)
@@ -278,13 +311,14 @@ class Vowel(fs: Int) : Effect(
         FxParam("mix", "MIX", 0.85f, format = ::pct),
     ),
     fs,
+    Divisions.CYCLES, 1, 3f / 7f,
 ) {
     private val ic1 = FloatArray(6)
     private val ic2 = FloatArray(6)
     private val a1 = FloatArray(6)
     private val a2 = FloatArray(6)
     private val a3 = FloatArray(6)
-    private var phase = 0.0
+    private val clock = LfoClock()
     private var mixS = Float.NaN
     private val ms = smoothing(fs, 0.01f)
 
@@ -293,7 +327,7 @@ class Vowel(fs: Int) : Effect(
     }
 
     override fun reset() {
-        ic1.fill(0f); ic2.fill(0f); phase = 0.0; mixS = Float.NaN
+        ic1.fill(0f); ic2.fill(0f); clock.reset(); mixS = Float.NaN
     }
 
     private fun updateBand(slot: Int, band: Int, hz: Float) {
@@ -305,9 +339,13 @@ class Vowel(fs: Int) : Effect(
         a3[slot] = g * g * a
     }
 
-    override fun process(buf: FloatArray, frames: Int, bpm: Float) {
+    override fun process(buf: FloatArray, frames: Int, bpm: Float, beat: Double) {
+        val synced = sync
         val rate = p(1)
-        val inc = if (rate < 0.01f) 0.0 else TWO_PI * rateHz(rate) / fs
+        val moving = synced || rate >= 0.01f
+        val hz = rateHz(rate).toDouble()
+        val divBeats = if (synced) division().beats.toDouble() else 1.0
+        val bps = bpm / 60.0 / fs
         val depth = p(2)
         val base = p(0) * 4f
         val mix = p(3)
@@ -316,8 +354,9 @@ class Vowel(fs: Int) : Effect(
         while (f < frames) {
             val n = min(BLOCK, frames - f)
             // Update the formant coefficients once per block, per channel.
+            val phase = if (moving) TWO_PI * clock.next(synced, beat, f, bps, divBeats, hz, fs, n) else 0.0
             for (ch in 0 until 2) {
-                val lfo = if (inc == 0.0) 0f else sin(phase + ch * PI / 2).toFloat()
+                val lfo = if (!moving) 0f else sin(phase + ch * PI / 2).toFloat()
                 val pos = (base + depth * 2f * lfo).coerceIn(0f, 4f)
                 val i0 = min(pos.toInt(), 3)
                 val fr = pos - i0
@@ -325,8 +364,6 @@ class Vowel(fs: Int) : Effect(
                     updateBand(ch * 3 + b, b, FORMANTS[i0][b] * (1f - fr) + FORMANTS[i0 + 1][b] * fr)
                 }
             }
-            phase += inc * n
-            if (phase > TWO_PI) phase -= TWO_PI
             var idx = f * 2
             for (s in 0 until n) {
                 mixS += (mix - mixS) * ms
@@ -378,25 +415,23 @@ class Warble(fs: Int) : Effect(
         FxParam("wow", "WOW", 0.4f, format = ::pct),
         FxParam("flutter", "FLUTTER", 0.3f, format = ::pct),
         FxParam("heat", "HEAT", 0.35f, format = ::pct),
-        FxParam("mix", "MIX", 1f, format = ::pct),
+        FxParam("rate", "RATE", 0.54f) { "%.2f Hz".format(rateHz(it)) },
     ),
     fs,
+    Divisions.CYCLES, 3, 3f / 7f,
 ) {
     private val dl = DelayLine((0.03 * fs).toInt())
     private val dr = DelayLine((0.03 * fs).toInt())
-    private var wowPh = 0.0
-    private var wow2Ph = 0.0
+    private val wowClock = LfoClock()
     private var flPh = 0.0
     private var fl2Ph = 0.0
     private var drift = 0f
     private var rng = 0x2545F491
     private var lpL = 0f
     private var lpR = 0f
-    private var mixS = Float.NaN
-    private val ms = smoothing(fs, 0.01f)
 
     override fun reset() {
-        dl.clear(); dr.clear(); lpL = 0f; lpR = 0f; drift = 0f; mixS = Float.NaN
+        dl.clear(); dr.clear(); lpL = 0f; lpR = 0f; drift = 0f; wowClock.reset()
     }
 
     private fun noise(): Float {
@@ -404,12 +439,14 @@ class Warble(fs: Int) : Effect(
         return rng / 2147483648f
     }
 
-    override fun process(buf: FloatArray, frames: Int, bpm: Float) {
+    override fun process(buf: FloatArray, frames: Int, bpm: Float, beat: Double) {
         val wow = p(0)
         val flutter = p(1)
         val heat = p(2)
-        val mix = p(3)
-        if (mixS.isNaN()) mixS = mix
+        val synced = sync
+        val wowHz = rateHz(p(3)).toDouble()
+        val divBeats = if (synced) division().beats.toDouble() else 1.0
+        val bps = bpm / 60.0 / fs
         val wowAmp = 2.6f * wow
         val flAmp = 0.2f * flutter
         val driftAmp = 9f * wow
@@ -418,20 +455,16 @@ class Warble(fs: Int) : Effect(
         val fc = 14000f - heat * 10500f
         val lp = exp(-TWO_PI * fc / fs).toFloat()
         val msToSamples = fs / 1000f
-        val incWow = TWO_PI * 0.6 / fs
-        val incWow2 = TWO_PI * 0.23 / fs
         val incFl = TWO_PI * 7.3 / fs
         val incFl2 = TWO_PI * 11.7 / fs
         var i = 0
         for (f in 0 until frames) {
-            mixS += (mix - mixS) * ms
             drift += (noise() - drift) * 0.0002f
-            val common = wowAmp * (0.8f * sin(wowPh).toFloat() + 0.2f * sin(wow2Ph).toFloat()) + driftAmp * drift
+            val wowCycle = TWO_PI * wowClock.next(synced, beat, f, bps, divBeats, wowHz, fs)
+            val common = wowAmp * (0.8f * sin(wowCycle).toFloat() + 0.2f * sin(2.0 * wowCycle + 1.0).toFloat()) + driftAmp * drift
             val modL = common + flAmp * (sin(flPh).toFloat() + 0.4f * sin(fl2Ph).toFloat())
             val modR = common * 0.9f + flAmp * (sin(flPh + 1.1).toFloat() + 0.4f * sin(fl2Ph + 0.7).toFloat())
-            wowPh += incWow; wow2Ph += incWow2; flPh += incFl; fl2Ph += incFl2
-            if (wowPh > TWO_PI) wowPh -= TWO_PI
-            if (wow2Ph > TWO_PI) wow2Ph -= TWO_PI
+            flPh += incFl; fl2Ph += incFl2
             if (flPh > TWO_PI) flPh -= TWO_PI
             if (fl2Ph > TWO_PI) fl2Ph -= TWO_PI
             val xl = buf[i]
@@ -444,14 +477,15 @@ class Warble(fs: Int) : Effect(
             wr = tanh(drive * wr) * comp
             lpL = (1f - lp) * wl + lp * lpL
             lpR = (1f - lp) * wr + lp * lpR
-            buf[i] = xl * (1f - mixS) + lpL * mixS
-            buf[i + 1] = xr * (1f - mixS) + lpR * mixS
+            buf[i] = lpL
+            buf[i + 1] = lpR
             i += 2
         }
     }
 
     private companion object {
         const val BASE_MS = 7f
+        fun rateHz(v: Float) = 0.15f * 13f.pow(v)
     }
 }
 
@@ -470,6 +504,7 @@ class Ghost(fs: Int) : Effect(
         FxParam("mix", "MIX", 0.5f, format = ::pct),
     ),
     fs,
+    Divisions.ECHO, 0, 0.6f,
 ) {
     private val size = (2.3 * fs).toInt()
     private val bufL = FloatArray(size)
@@ -494,8 +529,16 @@ class Ghost(fs: Int) : Effect(
         return j
     }
 
-    override fun process(buf: FloatArray, frames: Int, bpm: Float) {
-        val len = (timeSec(p(0)) * fs).toInt().coerceIn(256, size / 2 - 8)
+    /** The grain length for the current settings; with sync on it is a note division at [bpm]. */
+    internal fun grainFrames(bpm: Float): Int {
+        val maxLen = size / 2 - 8
+        var len = if (sync) (division().beats * 60.0 / bpm.coerceAtLeast(20f) * fs).toInt() else (timeSec(p(0)) * fs).toInt()
+        while (len > maxLen) len /= 2 // too long at a slow tempo: use half the division
+        return max(256, len)
+    }
+
+    override fun process(buf: FloatArray, frames: Int, bpm: Float, beat: Double) {
+        val len = grainFrames(bpm)
         val fb = p(1) * 0.85f
         val lp = exp(-TWO_PI * toneHz(p(2)) / fs).toFloat()
         val mix = p(3)

@@ -30,7 +30,7 @@ interface GuidePen {
 
 enum class GuideInput { TOUCH, DESKTOP }
 
-enum class GuideArt { WELCOME, SCREENS, RUN, STEPS, KNOB, SAMPLER, FX, END }
+enum class GuideArt { WELCOME, SCREENS, RUN, STEPS, KNOB, SAMPLER, PADS, FX, END }
 
 class GuidePage(val title: String, val body: String, val art: GuideArt)
 
@@ -79,9 +79,17 @@ object Guide {
                 GuideArt.SAMPLER,
             ),
             GuidePage(
+                "Les pads",
+                "Sous chaque instrument, \u25B2\u00A0PADS ouvre 16 pads à jouer à la main. Armez REC puis tapez un rythme\u00A0: la première frappe lance la lecture et remplit une boucle de 8 ou 16 mesures, " +
+                    "calée sur le tempo. UNDO retire la dernière passe, CLEAR efface tout." +
+                    (if (touch) "" else " Au clavier\u00A0: 1 2 3 4, Q W E R, A S D F, Z X C V."),
+                GuideArt.PADS,
+            ),
+            GuidePage(
                 "Les effets",
                 "L'onglet FX réunit six effets qui traitent tout le mix, dans l'ordre\u00A0: Beat Repeat boucle la dernière tranche, " +
-                    "Warble et Vowel colorent le son, Flanger, Chorus et Ghost lui donnent de l'espace. Allumez-les avec ON.",
+                    "Warble et Vowel colorent le son, Flanger, Chorus et Ghost lui donnent de l'espace. " +
+                    "ON les allume et SYNC cale leur vitesse sur le tempo.",
                 GuideArt.FX,
             ),
             GuidePage(
@@ -372,6 +380,35 @@ class GuideOverlay(val pages: List<GuidePage>, private val animate: Boolean = tr
                     val amp = (0.25f + 0.75f * abs(sin(k * 0.37f) * sin(k * 0.11f + 1f))) * h * 0.3f
                     val lx = wx + ww * k / n
                     pen.line(lx, my - amp, lx, my + amp, fade(LED, a), 2f)
+                }
+            }
+            GuideArt.PADS -> {
+                // A 4 x 4 grid being tapped, recorded taps staying amber, and the loop bar running.
+                val cell = min(26f, (h - 28f) / 4f - 4f)
+                val gx = mx - (4 * cell + 3 * 4f) / 2f - 80f
+                val gy = y + 12f
+                val taps = intArrayOf(0, 5, 10, 5, 3, 12, 6, 9)
+                val step = (t * 3f).toInt() % taps.size
+                for (row in 0..3) for (col in 0..3) {
+                    val i = row * 4 + col
+                    val px = gx + col * (cell + 4f)
+                    val py = gy + (3 - row) * (cell + 4f)
+                    val hit = i == taps[step]
+                    val kept = taps.indexOf(i) in 0 until step
+                    pen.fillRound(px, py, cell, cell, 4f, fade(if (hit) 0xFF35E26B.toInt() else 0xFF2E2C30.toInt(), a))
+                    pen.strokeRound(px, py, cell, cell, 4f, fade(if (kept && !hit) 0xFFFFB000.toInt() else 0xFF57504A.toInt(), a), if (kept && !hit) 2f else 1f)
+                }
+                val rx = gx + 4 * (cell + 4f) + 24f
+                val rw = min(120f, x + w - rx - 14f)
+                if (rw > 40f) {
+                    pen.fillRound(rx, gy, 56f, 26f, 6f, fade(0xFF2E2C2A.toInt(), a))
+                    pen.fillCircle(rx + 12f, gy + 13f, 4f, fade(if ((t * 2f).toInt() % 2 == 0) LED else 0xFF5A1A14.toInt(), a))
+                    pen.text("REC", rx + 34f, gy + 17f, 10f, fade(WHITE, a), true, 0)
+                    pen.text("8 BARS", rx, gy + 46f, 10f, fade(BODY, a), true, -1)
+                    pen.fillRound(rx, gy + 56f, rw, 8f, 3f, fade(0xFF2B2B31.toInt(), a))
+                    val prog = (t / 6f) % 1f
+                    pen.fillRound(rx, gy + 56f, max(4f, rw * prog), 8f, 3f, fade(0xFF35E26B.toInt(), a * 0.6f))
+                    pen.fillRound(rx + rw * prog - 1.5f, gy + 53f, 3f, 14f, 1f, fade(0xFF35E26B.toInt(), a))
                 }
             }
             GuideArt.FX -> {

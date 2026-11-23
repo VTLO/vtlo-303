@@ -6,7 +6,7 @@ SetCompressor /SOLID lzma
 !include "MUI2.nsh"
 
 !define APP "VTLO 3O3"
-!define VERSION "1.1.0"
+!define VERSION "1.2.0"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\VTLO3O3"
 
 Name "${APP}"
@@ -14,7 +14,7 @@ OutFile "${OUT}"
 InstallDir "$PROGRAMFILES64\${APP}"
 InstallDirRegKey HKLM "${UNINST_KEY}" "InstallLocation"
 RequestExecutionLevel admin
-VIProductVersion "1.1.0.0"
+VIProductVersion "1.2.0.0"
 VIAddVersionKey "ProductName" "${APP}"
 VIAddVersionKey "CompanyName" "VTLO"
 VIAddVersionKey "FileDescription" "${APP} setup"

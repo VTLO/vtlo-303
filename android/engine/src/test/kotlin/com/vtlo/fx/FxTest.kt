@@ -259,4 +259,97 @@ class FxTest {
         val out = run(rack, FloatArray(fs * 2))
         assertEquals(0f, out.maxOf { abs(it) }, 1e-6f)
     }
+
+    // ─── Tempo sync ──────────────────────────────────────────
+
+    @Test
+    fun lfoClockFreeRunsOrLocksToTheBeat() {
+        val c = LfoClock()
+        // Free: advances hz / fs per sample.
+        assertEquals(0.5, c.next(false, 0.0, 0, 0.0, 1.0, 2.0, fs, steps = fs / 4), 1e-9) // 2 Hz for a quarter second
+        assertEquals(0.0, c.next(false, 0.0, 0, 0.0, 1.0, 2.0, fs, steps = fs / 4) % 1.0, 1e-9) // wraps back to the start
+        val d = LfoClock()
+        // Synced to 1 bar (4 beats): the phase is the position within the bar, whatever came before.
+        assertEquals(0.25, d.next(true, 1.0, 0, 0.001, 4.0, 99.0, fs), 1e-9)
+        assertEquals(0.5, d.next(true, 2.0, 0, 0.001, 4.0, 99.0, fs), 1e-9)
+        assertEquals(0.0, d.next(true, 8.0, 0, 0.001, 4.0, 99.0, fs), 1e-9) // two bars later: same place
+        assertEquals(0.5, d.next(true, 0.0, 2000, 0.001, 4.0, 99.0, fs), 1e-9) // sample offset inside a block
+    }
+
+    @Test
+    fun syncedSweepsFollowTheTransportPositionButFreeOnesDoNot() {
+        fun block(id: FxId, sync: Boolean, beat: Double): FloatArray {
+            val rack = FxRack(fs)
+            val fx = on(rack, id, 3 to 1f)
+            fx.set(0, 0.3f)
+            if (sync) { fx.sync = true; fx.setDivision(3f / 7f) } // 1 bar
+            val input = sine(1000.0, 0.2)
+            val out = input.copyOf()
+            rack.process(out, out.size / 2, 120f, beat)
+            return out
+        }
+        for (id in listOf(FxId.FLANGER, FxId.CHORUS, FxId.WARBLE)) {
+            assertTrue("$id synced at beat 0 and 1 differ", !block(id, true, 0.0).contentEquals(block(id, true, 1.0)))
+            // One bar (4 beats) later the sweep is back in the same place.
+            assertTrue("$id synced repeats every bar", block(id, true, 0.0).contentEquals(block(id, true, 4.0)))
+            assertTrue("$id free ignores the beat", block(id, false, 0.0).contentEquals(block(id, false, 7.3)))
+        }
+    }
+
+    @Test
+    fun syncTurnsTheRateKnobIntoADivisionSelectorAndRemembersBoth() {
+        val fx = FxRack(fs).effect(FxId.FLANGER)
+        fx.set(0, 0.8f)
+        assertEquals(0.8f, fx.knobValue(0), 0f)
+        assertEquals(0, fx.knobDetents(0))
+        assertTrue(fx.knobText(0, 0.8f).endsWith("Hz"))
+        fx.sync = true
+        assertEquals(8, fx.knobDetents(0))
+        assertEquals("1 bar", fx.knobText(0, fx.knobValue(0)))
+        fx.setFromKnob(0, 1f)
+        assertEquals("1/16", fx.division().label)
+        assertEquals(0.25f, fx.division().beats, 0f)
+        assertEquals(0.8f, fx.get(0), 0f) // the free value is untouched
+        fx.sync = false
+        assertEquals(0.8f, fx.knobValue(0), 0f)
+        // Only the knob that carries the rate changes; the others keep their meaning.
+        fx.sync = true
+        assertEquals(fx.params[1].detents, fx.knobDetents(1))
+        assertTrue(fx.syncable && !fx.alwaysSynced)
+        assertTrue(FxRack(fs).effect(FxId.BEAT_REPEAT).alwaysSynced)
+    }
+
+    @Test
+    fun ghostTimeFollowsTheTempoAndFitsItsBuffer() {
+        val g = Ghost(fs)
+        g.sync = true
+        g.setDivision(1f / 5f) // 1/8: half a beat
+        assertEquals(12000, g.grainFrames(120f))
+        assertEquals(24000, g.grainFrames(60f))
+        g.setDivision(1f) // 1/2 note = 2 beats: 96000 frames at 60 BPM is too long, so it halves
+        assertEquals(48000, g.grainFrames(60f))
+        assertEquals(48000, g.grainFrames(120f)) // 2 beats at 120 BPM is exactly one second
+    }
+
+    @Test
+    fun everySyncedEffectStaysFiniteAtExtremes() {
+        for (id in FxId.values()) {
+            val rack = FxRack(fs)
+            val fx = on(rack, id)
+            if (fx.syncable) { fx.sync = true; fx.setDivision(1f) }
+            fx.params.indices.forEach { fx.set(it, 1f) }
+            var beat = 0.0
+            val out = noise(1.0, amp = 0.9f).copyOf()
+            var f = 0
+            while (f < out.size / 2) {
+                val n = minOf(257, out.size / 2 - f)
+                val chunk = out.copyOfRange(f * 2, (f + n) * 2)
+                rack.process(chunk, n, 190f, beat)
+                System.arraycopy(chunk, 0, out, f * 2, n * 2)
+                beat += n * 190.0 / 60.0 / fs
+                f += n
+            }
+            assertTrue("$id", out.all { it.isFinite() && abs(it) < 6f })
+        }
+    }
 }

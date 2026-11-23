@@ -80,6 +80,7 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
     private var toastText = ""
     private var toastUntil = 0L
     private var lastPlaying = false
+    private val decks = arrayOfNulls<PadDeck>(PART_NAMES.size)
     /** The French guide, open on first launch and from the ? pad. */
     private var guide: GuideLayer? = if (studio.props.getProperty("ui.guideSeen") == "true") null else GuideLayer()
 
@@ -89,6 +90,10 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
     init {
         screens = screenFactory(this)
         buildStrip()
+        // Every instrument page can show a 16-pad deck below it, hidden until asked for.
+        for (i in decks.indices) {
+            decks[i] = PadDeck(this, i, studio.props.getProperty("deck.$i").toBoolean()) { open -> studio.props["deck.$i"] = open.toString() }
+        }
         frame.defaultCloseOperation = JFrame.DO_NOTHING_ON_CLOSE
         frame.contentPane.add(canvas, BorderLayout.CENTER)
         frame.minimumSize = Dimension(800, 520)
@@ -148,6 +153,7 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
     private fun setPage(p: Int) {
         page = (p + screens.size) % screens.size
         screens[page].refresh()
+        decks.getOrNull(page)?.refresh()
         refreshStrip()
         canvas.repaint()
     }
@@ -209,6 +215,7 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
             screens.forEach { it.refresh() }
         }
         screens[page].onFrame(playing)
+        decks.getOrNull(page)?.onFrame(playing)
         canvas.repaint()
     }
 
@@ -222,6 +229,11 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
     private fun handleKey(e: KeyEvent): Boolean {
         val pressed = e.id == KeyEvent.KEY_PRESSED
         if (e.id != KeyEvent.KEY_PRESSED && e.id != KeyEvent.KEY_RELEASED) return false
+        // With a deck open, its keys (1-4, Q-R, A-F, Z-V) play the pads instead of the page's own keys.
+        if (!e.isControlDown && !e.isAltDown) {
+            val deck = decks.getOrNull(page)
+            if (deck != null && deck.expanded && deck.key(e.keyCode, pressed)) return true
+        }
         guide?.let {
             if (pressed) it.key(e.keyCode)
             closeGuideIfDone()
@@ -255,8 +267,9 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
     }
 
     /** Renders the current page to an image (used for screenshots and tests). */
-    fun snapshot(width: Int, height: Int, pageIndex: Int = page, guidePage: Int = -1): BufferedImage {
+    fun snapshot(width: Int, height: Int, pageIndex: Int = page, guidePage: Int = -1, deckOpen: Boolean = false): BufferedImage {
         page = pageIndex
+        decks.getOrNull(page)?.apply { setExpanded(deckOpen); onFrame(false) }
         guide = if (guidePage >= 0) GuideLayer(guidePage, animate = false) else null
         screens[page].refresh()
         refreshStrip()
@@ -329,7 +342,7 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
             repaint()
         }
 
-        private fun widgets() = strip + screens[page].widgets
+        private fun widgets() = strip + screens[page].widgets + (decks.getOrNull(page)?.widgets() ?: emptyList())
 
         private fun hit(x: Float, y: Float): Widget? = widgets().lastOrNull { it.interactive && it.contains(x, y) }
 
@@ -349,9 +362,10 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
             g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE)
             g.color = Colors.chassis
             g.fillRect(0, 0, width, height)
-            scale = min(width / DW, height / DH)
+            val dh = DH + (decks.getOrNull(page)?.height ?: 0f) // the deck, when the page has one, adds to the design height
+            scale = min(width / DW, height / dh)
             ox = (width - DW * scale) / 2
-            oy = (height - DH * scale) / 2
+            oy = (height - dh * scale) / 2
             val saved: AffineTransform = g.transform
             g.translate(ox.toDouble(), oy.toDouble())
             g.scale(scale.toDouble(), scale.toDouble())

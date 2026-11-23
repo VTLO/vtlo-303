@@ -1,5 +1,6 @@
 package com.vtlo.fx
 
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicIntegerArray
 import kotlin.math.exp
 
@@ -23,12 +24,81 @@ class FxParam(
     val format: (Float) -> String,
 )
 
+/** A musical length for tempo sync: [beats] quarter notes long. */
+class Division(val label: String, val beats: Float)
+
+/** Division lists shared by the effects. */
+object Divisions {
+    /** LFO cycle lengths, from slow sweeps to fast wobbles. */
+    val CYCLES = listOf(
+        Division("8 bars", 32f), Division("4 bars", 16f), Division("2 bars", 8f), Division("1 bar", 4f),
+        Division("1/2", 2f), Division("1/4", 1f), Division("1/8", 0.5f), Division("1/16", 0.25f),
+    )
+
+    /** Echo / grain lengths. */
+    val ECHO = listOf(
+        Division("1/16", 0.25f), Division("1/8", 0.5f), Division("1/8.", 0.75f),
+        Division("1/4", 1f), Division("1/4.", 1.5f), Division("1/2", 2f),
+    )
+}
+
 /**
  * A stereo insert effect working in place on interleaved frames. Parameters are written
  * from the UI thread and read on the audio thread (lock-free).
+ *
+ * Tempo sync: an effect with [divisions] can lock one knob ([syncParam]) to the studio tempo.
+ * With [sync] on, that knob picks a note division instead of a free value, and each setting
+ * is remembered separately, so switching back and forth loses nothing.
  */
-abstract class Effect(val id: FxId, val params: List<FxParam>, protected val fs: Int) {
+abstract class Effect(
+    val id: FxId,
+    val params: List<FxParam>,
+    protected val fs: Int,
+    val divisions: List<Division>? = null,
+    val syncParam: Int = -1,
+    divisionDefault: Float = 0.5f,
+) {
     @Volatile var on = false
+
+    /** True for effects that are always locked to the tempo (beat repeat). */
+    open val alwaysSynced: Boolean get() = false
+
+    val syncable: Boolean get() = divisions != null
+
+    @Volatile var sync = false
+
+    private val divBits = AtomicInteger(divisionDefault.toRawBits())
+
+    fun getDivision(): Float = Float.fromBits(divBits.get())
+
+    fun setDivision(v: Float) {
+        val n = divisions?.size ?: return
+        var x = v.coerceIn(0f, 1f)
+        if (n > 1) x = Math.round(x * (n - 1)).toFloat() / (n - 1)
+        divBits.set(x.toRawBits())
+    }
+
+    /** The division currently selected (meaningful when [syncable]). */
+    fun division(): Division {
+        val d = divisions!!
+        return d[Math.round(getDivision() * (d.size - 1))]
+    }
+
+    private fun syncActive(i: Int) = sync && divisions != null && i == syncParam
+
+    /** What the knob for parameter [i] shows and edits right now. */
+    fun knobValue(i: Int): Float = if (syncActive(i)) getDivision() else get(i)
+
+    fun setFromKnob(i: Int, v: Float) {
+        if (syncActive(i)) setDivision(v) else set(i, v)
+    }
+
+    fun knobDetents(i: Int): Int = if (syncActive(i)) divisions!!.size else params[i].detents
+
+    fun knobDefault(i: Int): Float = if (syncActive(i)) 0.5f else params[i].default
+
+    fun knobText(i: Int, v: Float): String =
+        if (syncActive(i)) divisions!![Math.round(v.coerceIn(0f, 1f) * (divisions.size - 1))].label else params[i].format(v)
 
     private val values = AtomicIntegerArray(params.size).also { a ->
         params.forEachIndexed { i, p -> a.set(i, p.default.toRawBits()) }
@@ -51,8 +121,11 @@ abstract class Effect(val id: FxId, val params: List<FxParam>, protected val fs:
     /** Clears delay lines and tails. Audio thread only. */
     abstract fun reset()
 
-    /** Processes [frames] interleaved stereo frames in place. [bpm] is the studio tempo. */
-    abstract fun process(buf: FloatArray, frames: Int, bpm: Float)
+    /**
+     * Processes [frames] interleaved stereo frames in place. [bpm] is the studio tempo and
+     * [beat] the transport position, in quarter notes, at the first frame (synced LFOs lock to it).
+     */
+    abstract fun process(buf: FloatArray, frames: Int, bpm: Float, beat: Double)
 
     protected fun p(i: Int) = get(i)
 }
@@ -86,7 +159,7 @@ class FxRack(val sampleRate: Int) {
         resetRequested = true
     }
 
-    fun process(buf: FloatArray, frames: Int, bpm: Float) {
+    fun process(buf: FloatArray, frames: Int, bpm: Float, beat: Double = 0.0) {
         if (resetRequested) {
             resetRequested = false
             effects.forEach { it.reset() }
@@ -97,7 +170,7 @@ class FxRack(val sampleRate: Int) {
         for (k in effects.indices) {
             val fx = effects[k]
             if (fx.selfBypass) {
-                fx.process(buf, frames, bpm)
+                fx.process(buf, frames, bpm, beat)
                 continue
             }
             val target = if (fx.on) 1f else 0f
@@ -109,12 +182,12 @@ class FxRack(val sampleRate: Int) {
             if (!wasRunning[k]) fx.reset() // starting from silence: no stale tail
             wasRunning[k] = true
             if (e == 1f && target == 1f) {
-                fx.process(buf, frames, bpm)
+                fx.process(buf, frames, bpm, beat)
                 continue
             }
             if (scratch.size < n) scratch = FloatArray(n)
             System.arraycopy(buf, 0, scratch, 0, n)
-            fx.process(scratch, frames, bpm)
+            fx.process(scratch, frames, bpm, beat)
             var i = 0
             for (f in 0 until frames) {
                 e += (target - e) * enableStep

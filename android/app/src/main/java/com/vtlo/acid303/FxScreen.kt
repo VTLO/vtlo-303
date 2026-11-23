@@ -35,6 +35,7 @@ class FxScreen(host: ScreenHost, private val rack: FxRack, private val bpm: () -
 
     private val bound = ArrayList<Bound>()
     private val toggles = HashMap<Effect, PadButton>()
+    private val syncs = HashMap<Effect, PadButton>()
     private lateinit var playButton: PadButton
     private lateinit var bpmText: TextView
     private var frameCount = 0
@@ -44,6 +45,7 @@ class FxScreen(host: ScreenHost, private val rack: FxRack, private val bpm: () -
     override fun build(landscape: Boolean): View {
         bound.clear()
         toggles.clear()
+        syncs.clear()
         val view = if (landscape) landscapeUi() else portraitUi()
         refreshAll()
         return view
@@ -169,6 +171,22 @@ class FxScreen(host: ScreenHost, private val rack: FxRack, private val bpm: () -
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         })
         title.addView(names, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        // SYNC locks the effect's speed or time to the studio tempo; beat repeat is always locked.
+        val sync = PadButton(context, "SYNC", hasLed = true, dark = false).apply {
+            if (fx.alwaysSynced) {
+                isClickable = false
+                isFocusable = false
+                active = true
+                contentDescription = "${fx.id.label} is always tempo-synced"
+            } else {
+                setOnClickListener {
+                    fx.sync = !fx.sync
+                    refreshSync(fx)
+                }
+            }
+        }
+        syncs[fx] = sync
+        title.addView(sync, LinearLayout.LayoutParams(dpi(58), dpi(48)).apply { marginStart = dpi(6) })
         val toggle = PadButton(context, "OFF", hasLed = true, dark = true).apply {
             setOnClickListener {
                 fx.on = !fx.on
@@ -181,12 +199,26 @@ class FxScreen(host: ScreenHost, private val rack: FxRack, private val bpm: () -
 
         val grid = FlowGrid(context, dpi(if (landscape) 40 else 66), allowedColumns = intArrayOf(4))
         fx.params.forEachIndexed { i, p ->
-            val knob = KnobView(context, p.label, p.default, p.format, { v -> fx.set(i, v) }, p.detents)
+            val knob = KnobView(context, p.label, p.default, { v -> fx.knobText(i, v) }, { v -> fx.setFromKnob(i, v) }, p.detents)
             bound.add(Bound(fx, i, knob))
             grid.addView(knob)
         }
         panel.addView(grid)
         return panel
+    }
+
+    /** Updates the SYNC switch and turns the rate knob into a division selector (or back). */
+    private fun refreshSync(fx: Effect) {
+        syncs[fx]?.takeIf { !fx.alwaysSynced }?.apply {
+            active = fx.sync
+            contentDescription = "${fx.id.label} tempo sync " + if (fx.sync) "on" else "off"
+        }
+        bound.filter { it.fx === fx }.forEach {
+            it.knob.detents = fx.knobDetents(it.index)
+            it.knob.default = fx.knobDefault(it.index)
+            it.knob.setValue(fx.knobValue(it.index))
+            it.knob.invalidate()
+        }
     }
 
     private fun refreshToggle(fx: Effect) {
@@ -198,7 +230,7 @@ class FxScreen(host: ScreenHost, private val rack: FxRack, private val bpm: () -
     }
 
     override fun refreshAll() {
-        bound.forEach { it.knob.setValue(it.fx.get(it.index)) }
+        rack.effects.forEach(::refreshSync)
         rack.effects.forEach(::refreshToggle)
         refreshBpm()
         onTransportChanged(host.transport.playing)

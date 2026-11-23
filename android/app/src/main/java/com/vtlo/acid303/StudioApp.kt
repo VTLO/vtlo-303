@@ -63,6 +63,8 @@ class StudioApp : InstrumentApp() {
         engine = StudioEngine(bass, drums, sampler, bass2, drums2)
         engine.parts.forEachIndexed { i, part -> part.on = prefs().getBoolean(PART_KEYS[i], true) }
         restoreFx()
+        engine.parts.forEachIndexed { i, part -> prefs().getString("pads_${PART_KEYS[i].removeSuffix("_on")}", null)?.let(part.loop::load) }
+        engine.click = prefs().getBoolean("click", false)
     }
 
     /** First run: fill the pads with sounds from the bundled kits so the sampler plays at once. */
@@ -90,8 +92,12 @@ class StudioApp : InstrumentApp() {
             saveBass(this, bass, "")
             saveBass(this, bass2, PREFIX_2)
             engine.parts.forEachIndexed { i, part -> putBoolean(PART_KEYS[i], part.on) }
+            engine.parts.forEachIndexed { i, part -> putString("pads_${PART_KEYS[i].removeSuffix("_on")}", part.loop.serialize()) }
+            putBoolean("click", engine.click)
             fx.effects.forEach { e ->
                 putBoolean("fx_${e.id.key}_on", e.on)
+                putBoolean("fx_${e.id.key}_sync", e.sync)
+                putFloat("fx_${e.id.key}_div", e.getDivision())
                 e.params.forEachIndexed { i, p -> putFloat("fx_${e.id.key}_${p.key}", e.get(i)) }
             }
         }.apply()
@@ -105,6 +111,8 @@ class StudioApp : InstrumentApp() {
         fx.effects.forEach { e ->
             e.params.forEachIndexed { i, param -> e.set(i, p.getFloat("fx_${e.id.key}_${param.key}", param.default)) }
             e.on = p.getBoolean("fx_${e.id.key}_on", false)
+            e.sync = e.syncable && p.getBoolean("fx_${e.id.key}_sync", false)
+            e.setDivision(p.getFloat("fx_${e.id.key}_div", 0.5f))
         }
     }
 

@@ -27,11 +27,11 @@ import kotlin.math.sin
 class KnobView(
     context: Context,
     private val label: String,
-    private val default: Float,
+    var default: Float,
     private val format: (Float) -> String,
     private val onChange: (Float) -> Unit,
     /** Detented knobs snap to this many positions (0 = continuous). */
-    private val detents: Int = 0,
+    var detents: Int = 0,
 ) : View(context) {
 
     var value: Float = default

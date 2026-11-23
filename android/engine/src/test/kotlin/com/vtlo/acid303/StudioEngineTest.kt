@@ -158,4 +158,111 @@ class StudioEngineTest {
         repeat(30) { s.render(buf, 512) }
         assertEquals(0f, buf.maxOf { abs(it) }, 1e-4f)
     }
+
+    // ─── Pad loops ───────────────────────────────────────────
+
+    /** Renders [frames] frames of a studio that is playing with every part but [audible] muted. */
+    private fun renderLeft(s: StudioEngine, frames: Int): FloatArray {
+        val out = FloatArray(frames * 2)
+        val buf = FloatArray(1024)
+        var f = 0
+        while (f < frames) {
+            val n = minOf(512, frames - f)
+            s.render(buf, n)
+            System.arraycopy(buf, 0, out, f * 2, n * 2)
+            f += n
+        }
+        return out
+    }
+
+    private fun firstSound(x: FloatArray, from: Int = 0, threshold: Float = 1e-4f): Int {
+        for (f in from until x.size / 2) if (abs(x[f * 2]) > threshold) return f
+        return -1
+    }
+
+    private fun studioWith(kind: StudioEngine.Kind, index: Int = 0): Pair<StudioEngine, StudioEngine.Part> {
+        val s = studio()
+        s.bass.set(Param.TEMPO, Param.bpmToNorm(120f)) // the fixture's default is 130 BPM
+        s.parts.forEach { it.on = false }
+        val part = s.parts.filter { it.kind == kind }[index]
+        part.on = true
+        return s to part
+    }
+
+    @Test
+    fun drumPadHitsStartOnTheRecordedSample() {
+        val (s, part) = studioWith(StudioEngine.Kind.DRUMS)
+        part.loop.apply { recording = true; press(0, 1.0); recording = false } // kick on beat 1: frame 24000 at 120 BPM
+        s.play()
+        val out = renderLeft(s, 26000)
+        val first = firstSound(out)
+        assertTrue("the kick starts on frame 24000 (was $first)", first in 24000..24006)
+        assertTrue(part.loop.hits.get(0) >= 1)
+    }
+
+    @Test
+    fun theLoopPlaysAgainEveryEightBars() {
+        val (s, part) = studioWith(StudioEngine.Kind.DRUMS, 1)
+        part.loop.apply { recording = true; press(2, 0.0); recording = false }
+        s.play()
+        val out = renderLeft(s, 32 * 24000 + 4000) // 32 beats at 120 BPM = 768000 frames, plus a bit
+        assertTrue(firstSound(out) in 0..6)
+        val gap = firstSound(out, from = 700000)
+        assertTrue("silent before the loop point, then the hit returns (first sound at $gap)", gap in 767998..768006)
+    }
+
+    @Test
+    fun samplerPadsAndAccentsTriggerTheRightPad() {
+        val (s, part) = studioWith(StudioEngine.Kind.SAMPLER)
+        s.sampler.bank.toggle(0, 0, 0) // the fixture switched step 1 on; switch it off so only the pads sound
+        part.loop.apply { recording = true; press(8, 2.0); recording = false } // pad 9 = the accented hit of pad 1
+        s.play()
+        val first = firstSound(renderLeft(s, 50000))
+        assertTrue("sampler hit on frame 48000 (was $first)", first in 48000..48006)
+    }
+
+    @Test
+    fun bassPadsPlayNotesOnTheirOwnVoiceWhileTheSequencerRuns() {
+        val (s, part) = studioWith(StudioEngine.Kind.BASS, 1)
+        // The first bass line's sequencer is irrelevant here; the second one has an empty pattern.
+        part.loop.apply { recording = true; press(0, 1.0); release(0, 2.0); recording = false }
+        s.play()
+        val out = renderLeft(s, 40000)
+        val first = firstSound(out)
+        assertTrue("the bass note starts on frame 24000 (was $first)", first in 24000..24100)
+        // The note ends (a 1-beat gate) and the voice falls silent well before the end.
+        assertTrue(firstSound(out, from = 24000 + 24000 + 12000) < 0 || abs(out[39990 * 2]) < 0.05f)
+    }
+
+    @Test
+    fun padNotesSoundWithoutTheTransportToo() {
+        val (s, part) = studioWith(StudioEngine.Kind.DRUMS)
+        s.padDown(part, 0, beat = 0.0)
+        assertTrue(firstSound(renderLeft(s, 2000)) in 0..6)
+    }
+
+    @Test
+    fun recordingFromLivePadTapsUsesTheTransportClock() {
+        val (s, part) = studioWith(StudioEngine.Kind.DRUMS)
+        part.loop.recording = true
+        s.play()
+        renderLeft(s, 24000 + 100) // a little past beat 1
+        val beat = s.tapBeat()
+        assertTrue("tap position is near beat 1 (was $beat)", beat in 0.9..1.2)
+        s.padDown(part, 3, beat = 1.0)
+        assertEquals(1, part.loop.padCounts.get(3))
+    }
+
+    @Test
+    fun theMetronomeClicksOnEveryBeatAndOnlyWhenAskedFor() {
+        val (s, _) = studioWith(StudioEngine.Kind.DRUMS)
+        s.parts.forEach { it.on = false }
+        s.play()
+        assertEquals(-1, firstSound(renderLeft(s, 30000)))
+        s.stop(); s.click = true; s.play()
+        val out = renderLeft(s, 60000)
+        assertTrue(firstSound(out) in 0..2)
+        val second = firstSound(out, from = 5000)
+        assertTrue("the next click is on beat 1 (frame 24000), was $second", second in 24000..24003)
+    }
 }

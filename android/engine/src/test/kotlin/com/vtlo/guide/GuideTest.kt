@@ -28,13 +28,17 @@ class GuideTest {
     fun bothVariantsHaveSevenFrenchPages() {
         for (input in GuideInput.values()) {
             val pages = Guide.pages(input)
-            assertEquals(8, pages.size)
+            assertEquals(9, pages.size)
             assertEquals("Bienvenue dans VTLO 3O3", pages[0].title)
             assertTrue(pages.all { it.title.isNotBlank() && it.body.length > 40 })
         }
         assertTrue(Guide.pages(GuideInput.TOUCH)[1].body.contains("Glissez"))
         assertTrue(Guide.pages(GuideInput.DESKTOP)[1].body.contains("TAB"))
-        assertTrue(Guide.pages(GuideInput.TOUCH).any { it.art == GuideArt.FX && it.body.contains("Beat Repeat") })
+        assertTrue(Guide.pages(GuideInput.TOUCH).any { it.art == GuideArt.FX && it.body.contains("Beat Repeat") && it.body.contains("SYNC") })
+        val touchPads = Guide.pages(GuideInput.TOUCH).first { it.art == GuideArt.PADS }.body
+        val deskPads = Guide.pages(GuideInput.DESKTOP).first { it.art == GuideArt.PADS }.body
+        assertTrue(touchPads.contains("REC") && touchPads.contains("16"))
+        assertTrue(deskPads.contains("Z X C V") && !touchPads.contains("Z X C V"))
     }
 
     @Test
@@ -70,7 +74,7 @@ class GuideTest {
         assertTrue(overlay.finished)
 
         val full = GuideOverlay(Guide.pages(GuideInput.DESKTOP), animate = false)
-        repeat(7) { full.next() }
+        repeat(8) { full.next() }
         assertTrue(full.isLast)
         assertFalse(full.finished)
         full.next()

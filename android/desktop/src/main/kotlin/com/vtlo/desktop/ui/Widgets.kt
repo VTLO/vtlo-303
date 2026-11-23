@@ -129,10 +129,10 @@ class BpmDisplay(var value: () -> Int) : Widget() {
 /** Rotary knob: drag up/down, mouse wheel, double-click resets; shift for fine moves. */
 class Knob(
     val label: String,
-    private val default: Float,
+    var default: Float,
     private val format: (Float) -> String,
     private val onChange: (Float) -> Unit,
-    private val detents: Int = 0,
+    var detents: Int = 0,
 ) : Widget() {
     var value = default
         private set

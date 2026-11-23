@@ -104,12 +104,16 @@ class StudioTest {
         val a = Studio(dir, sampleRate = 48000)
         a.engine.fx.effect(com.vtlo.fx.FxId.VOWEL).apply { on = true; set(0, 0.5f) }
         a.engine.fx.effect(com.vtlo.fx.FxId.GHOST).set(1, 0.6f)
+        a.engine.fx.effect(com.vtlo.fx.FxId.CHORUS).apply { sync = true; setDivision(0f) }
         a.save()
         val b = Studio(dir, sampleRate = 48000)
         assertTrue(b.engine.fx.effect(com.vtlo.fx.FxId.VOWEL).on)
         assertEquals(0.5f, b.engine.fx.effect(com.vtlo.fx.FxId.VOWEL).get(0), 0f)
         assertEquals(0.6f, b.engine.fx.effect(com.vtlo.fx.FxId.GHOST).get(1), 0f)
         assertTrue(!b.engine.fx.effect(com.vtlo.fx.FxId.CHORUS).on)
+        assertTrue(b.engine.fx.effect(com.vtlo.fx.FxId.CHORUS).sync)
+        assertEquals("8 bars", b.engine.fx.effect(com.vtlo.fx.FxId.CHORUS).division().label)
+        assertTrue(!b.engine.fx.effect(com.vtlo.fx.FxId.FLANGER).sync)
 
         // A save from before the pages were regrouped: part1 was the drums, part2 the sampler.
         val old = tempDir()
@@ -142,5 +146,78 @@ class StudioTest {
         pad.release(pad.x + 2, pad.y + 2)
         assertTrue(flanger.on)
         assertEquals("ON", pad.text)
+    }
+
+    private class FakeHost(override val studio: Studio) : com.vtlo.desktop.ui.Host {
+        var toggles = 0
+        override var playing = false
+        override fun toggleTransport() { toggles++; playing = !playing }
+        override fun toast(message: String) {}
+        override fun saveWav(name: String, render: (java.io.OutputStream) -> Unit) {}
+        override fun openAudio(onFile: (File) -> Unit) {}
+        override fun popup(items: List<String>, x: Float, y: Float, onPick: (Int) -> Unit) {}
+    }
+
+    @Test
+    fun padDeckKeysPlayPadsAndTappingARhythmInStartsTheTransport() {
+        val studio = Studio(tempDir(), sampleRate = 48000)
+        val host = FakeHost(studio)
+        var opened = false
+        val deck = com.vtlo.desktop.ui.PadDeck(host, 2, expanded = false) { opened = it } // page 3 = DRUMS 1
+        val part = studio.engine.parts[2]
+        assertEquals(1, deck.widgets().size) // only the handle while hidden
+        assertEquals(com.vtlo.desktop.ui.PadDeck.HANDLE_HEIGHT, deck.height, 0f)
+        deck.setExpanded(true, notify = true)
+        assertTrue(opened)
+        assertEquals(com.vtlo.desktop.ui.PadDeck.HEIGHT, deck.height, 0f)
+        assertEquals(16, deck.widgets().count { it is com.vtlo.desktop.ui.MpcPad })
+        val pads = deck.widgets().filterIsInstance<com.vtlo.desktop.ui.MpcPad>().associateBy { it.index }
+        assertEquals("BD", pads[0]!!.label)
+        assertEquals("ACC", pads[8]!!.tag)
+        // Pad 1 is at the bottom left of the grid.
+        assertTrue(pads[0]!!.y > pads[12]!!.y && pads[0]!!.x == pads[12]!!.x)
+
+        // Not recording: keys sound the pad but record nothing and start nothing.
+        assertTrue(deck.key(java.awt.event.KeyEvent.VK_Z, true))
+        assertTrue(deck.key(java.awt.event.KeyEvent.VK_Z, false))
+        assertEquals(0, part.loop.eventCount)
+        assertEquals(0, host.toggles)
+        assertTrue(!deck.key(java.awt.event.KeyEvent.VK_SPACE, true)) // not a pad key
+
+        // Armed and stopped: the first tap starts the transport; a held key does not repeat.
+        part.loop.recording = true
+        assertTrue(deck.key(java.awt.event.KeyEvent.VK_S, true)) // pad 6
+        assertTrue(deck.key(java.awt.event.KeyEvent.VK_S, true)) // auto-repeat
+        assertTrue(deck.key(java.awt.event.KeyEvent.VK_S, false))
+        assertEquals(1, host.toggles)
+        assertEquals(1, part.loop.eventCount)
+        assertEquals(1, part.loop.padCounts.get(5))
+        // Mouse works as well.
+        val pad = pads[9]!!
+        pad.press(com.vtlo.desktop.ui.Press(pad.x + 1, pad.y + 1, false, 1, false))
+        pad.release(pad.x + 1, pad.y + 1)
+        assertEquals(2, part.loop.eventCount)
+        assertEquals(1, host.toggles) // already running
+    }
+
+    @Test
+    fun loopsClickAndDeckVisibilitySurviveARestart() {
+        val dir = tempDir()
+        val a = Studio(dir, sampleRate = 48000)
+        val loop = a.engine.parts[1].loop // BASS 2
+        loop.recording = true; loop.press(3, 4.0); loop.press(7, 9.0); loop.recording = false
+        loop.bars = 16
+        loop.baseNote = 48
+        a.engine.click = true
+        a.props["deck.1"] = "true"
+        a.save()
+        val b = Studio(dir, sampleRate = 48000)
+        val restored = b.engine.parts[1].loop
+        assertEquals(2, restored.eventCount)
+        assertEquals(16, restored.bars)
+        assertEquals(48, restored.baseNote)
+        assertTrue(b.engine.click)
+        assertEquals("true", b.props.getProperty("deck.1"))
+        assertEquals(0, b.engine.parts[0].loop.eventCount)
     }
 }
