@@ -41,7 +41,7 @@ class StudioTest {
         a.sampler.set(4, PadParam.CRUSH, 0.6f)
         a.sampler.padNames[4] = "MIC 1"
         a.sampler.bank.toggle(0, 4, 7)
-        a.engine.parts[1].on = false
+        a.engine.partOf(a.drums).on = false
         a.save()
         Thread.sleep(500) // pad files are written in the background
 
@@ -54,7 +54,7 @@ class StudioTest {
         assertEquals(0.6f, b.sampler.get(4, PadParam.CRUSH), 0f)
         assertEquals("MIC 1", b.sampler.padNames[4])
         assertTrue(b.sampler.bank.isOn(0, 4, 7))
-        assertTrue(!b.engine.parts[1].on)
+        assertTrue(!b.engine.partOf(b.drums).on)
         assertNotNull(b.sampler.sample(0)) // seeded pad audio was stored and reloaded
     }
 
@@ -84,7 +84,7 @@ class StudioTest {
         a.bass2.bank.setStep(0, 3, com.vtlo.acid303.dsp.PatternBank.pack(40, true, true, false))
         a.drums2.setKit(1, Kit.TR606)
         a.drums2.bank.toggle(0, 2, 4)
-        a.engine.parts[4].on = false
+        a.engine.partOf(a.drums2).on = false
         a.save()
 
         val b = Studio(dir, sampleRate = 48000)
@@ -92,9 +92,55 @@ class StudioTest {
         assertEquals(40, b.bass2.bank.step(0, 3) and 0x7f)
         assertEquals(Kit.TR606, b.drums2.kit(1))
         assertTrue(b.drums2.bank.row(0, 2) != 0)
-        assertTrue(!b.engine.parts[4].on)
+        assertTrue(!b.engine.partOf(b.drums2).on)
         // The first instruments are separate: untouched by the second ones' edits.
         assertTrue(b.bass.get(Param.CUTOFF) != 0.31f)
         assertTrue(b.drums.bank.row(0, 2) != b.drums2.bank.row(0, 2))
+    }
+
+    @Test
+    fun effectsSurviveRestartAndOldPartSwitchesStillApply() {
+        val dir = tempDir()
+        val a = Studio(dir, sampleRate = 48000)
+        a.engine.fx.effect(com.vtlo.fx.FxId.VOWEL).apply { on = true; set(0, 0.5f) }
+        a.engine.fx.effect(com.vtlo.fx.FxId.GHOST).set(1, 0.6f)
+        a.save()
+        val b = Studio(dir, sampleRate = 48000)
+        assertTrue(b.engine.fx.effect(com.vtlo.fx.FxId.VOWEL).on)
+        assertEquals(0.5f, b.engine.fx.effect(com.vtlo.fx.FxId.VOWEL).get(0), 0f)
+        assertEquals(0.6f, b.engine.fx.effect(com.vtlo.fx.FxId.GHOST).get(1), 0f)
+        assertTrue(!b.engine.fx.effect(com.vtlo.fx.FxId.CHORUS).on)
+
+        // A save from before the pages were regrouped: part1 was the drums, part2 the sampler.
+        val old = tempDir()
+        File(old, "studio.properties").writeText("part1=false\npart2=false\n")
+        val c = Studio(old, sampleRate = 48000)
+        assertTrue(!c.engine.partOf(c.drums).on)
+        assertTrue(!c.engine.partOf(c.sampler).on)
+        assertTrue(c.engine.partOf(c.bass).on && c.engine.partOf(c.drums2).on && c.engine.partOf(c.bass2).on)
+    }
+
+    @Test
+    fun fxPageHasSixEffectsAndTheirSwitchesWork() {
+        val studio = Studio(tempDir(), sampleRate = 48000)
+        val host = object : com.vtlo.desktop.ui.Host {
+            override val studio = studio
+            override val playing = false
+            override fun toggleTransport() {}
+            override fun toast(message: String) {}
+            override fun saveWav(name: String, render: (java.io.OutputStream) -> Unit) {}
+            override fun openAudio(onFile: (File) -> Unit) {}
+            override fun popup(items: List<String>, x: Float, y: Float, onPick: (Int) -> Unit) {}
+        }
+        val page = com.vtlo.desktop.ui.FxScreen(host)
+        assertEquals(24, page.widgets.count { it is com.vtlo.desktop.ui.Knob })
+        val switches = page.widgets.filterIsInstance<com.vtlo.desktop.ui.Pad>().filter { it.text == "OFF" }
+        assertEquals(6, switches.size)
+        val flanger = studio.engine.fx.effect(com.vtlo.fx.FxId.FLANGER)
+        val pad = switches[3] // chain order: repeat, warble, vowel, flanger, chorus, ghost
+        pad.press(com.vtlo.desktop.ui.Press(pad.x + 2, pad.y + 2, false, 1, false))
+        pad.release(pad.x + 2, pad.y + 2)
+        assertTrue(flanger.on)
+        assertEquals("ON", pad.text)
     }
 }

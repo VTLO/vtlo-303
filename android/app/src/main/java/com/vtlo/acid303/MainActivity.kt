@@ -18,6 +18,7 @@ import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.Toast
+import com.vtlo.acid303.dsp.Param
 import com.vtlo.core.audio.Transport
 import com.vtlo.core.ui.InstrumentScreen
 import com.vtlo.core.ui.PadButton
@@ -78,10 +79,11 @@ class MainActivity : Activity(), ScreenHost {
         volumeControlStream = AudioManager.STREAM_MUSIC
         screens = listOf(
             BassScreen(this, app.bass),
-            DrumScreen(this, app.drums, app::drumSamplesFor),
-            SamplerScreen(this, app.sampler),
             BassScreen(this, app.bass2, number = 2),
+            DrumScreen(this, app.drums, app::drumSamplesFor),
             DrumScreen(this, app.drums2, app::drumSamplesFor, number = 2),
+            SamplerScreen(this, app.sampler),
+            FxScreen(this, app.fx) { Param.normToBpm(app.bass.get(Param.TEMPO)) },
         )
         val page = savedInstanceState?.getInt(STATE_PAGE) ?: app.prefs().getInt(KEY_PAGE, 0)
 
@@ -367,7 +369,7 @@ class MainActivity : Activity(), ScreenHost {
         }
     }
 
-    private companion object {
+    companion object {
         const val STATE_PAGE = "page"
         const val STATE_GUIDE = "guide_page"
         const val KEY_PAGE = "page"
@@ -378,10 +380,12 @@ class MainActivity : Activity(), ScreenHost {
         const val REQUEST_NOTIFICATIONS = 2
         const val REQUEST_PERMISSION = 3
         const val REQUEST_OPEN = 4
-        /** Page order: the original three first, then the second bass line and second drum machine. */
-        val PAGES = listOf("BASS 1", "DRUMS 1", "SAMPLER", "BASS 2", "DRUMS 2")
-        val PART_NAMES = listOf("B1", "D1", "SMP", "B2", "D2")
-        const val ONE_ROW_MIN_WIDTH_DP = 720
+        /** Page order groups the instruments: bass lines, drum machines, sampler, then the master effects. */
+        val PAGES = listOf("BASS 1", "BASS 2", "DRUMS 1", "DRUMS 2", "SAMPLER", "FX")
+
+        /** Mix switches for the first five pages (the FX page has none: it acts on the whole mix). */
+        val PART_NAMES = listOf("B1", "B2", "D1", "D2", "SMP")
+        const val ONE_ROW_MIN_WIDTH_DP = 800
         const val KEY_ASKED_NOTIFICATIONS = "asked_notifications"
     }
 }

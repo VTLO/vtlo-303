@@ -56,7 +56,7 @@ class StudioTest {
         assertTrue(app.bass.bank.step(0, 0) != 0) // Acid Classic first step
 
         val pager = pager(a)
-        assertEquals(5, pager.childCount)
+        assertEquals(6, pager.childCount)
         assertEquals(0, pager.currentPage)
         pager.setPage(2, animate = false)
         assertEquals(2, pager.currentPage)
@@ -75,7 +75,7 @@ class StudioTest {
     @Config(qualifiers = "w411dp-h891dp-port")
     fun portraitBuildsAllPages() {
         val ctl = Robolectric.buildActivity(MainActivity::class.java).create()
-        assertEquals(5, pager(ctl.get()).childCount)
+        assertEquals(6, pager(ctl.get()).childCount)
         checkCoin(ctl.get())
         ctl.destroy()
     }
@@ -99,5 +99,47 @@ class StudioTest {
         val second = Robolectric.buildActivity(MainActivity::class.java).create()
         assertTrue(guides(second.get().window.decorView).isEmpty())
         second.destroy()
+    }
+
+    private fun knobs(v: android.view.View): List<com.vtlo.core.ui.KnobView> = when (v) {
+        is com.vtlo.core.ui.KnobView -> listOf(v)
+        is android.view.ViewGroup -> (0 until v.childCount).flatMap { knobs(v.getChildAt(it)) }
+        else -> emptyList()
+    }
+
+    @Test(timeout = 120000)
+    fun pagesAreGroupedLogicallyAndEndWithTheFxSection() {
+        assertEquals(listOf("BASS 1", "BASS 2", "DRUMS 1", "DRUMS 2", "SAMPLER", "FX"), MainActivity.PAGES)
+        assertEquals(listOf("B1", "B2", "D1", "D2", "SMP"), MainActivity.PART_NAMES)
+        val ctl = Robolectric.buildActivity(MainActivity::class.java).create()
+        val app = ctl.get().application as StudioApp
+        // The mix switches follow the same order as the pages.
+        assertEquals(listOf<Any>(app.bass, app.bass2, app.drums, app.drums2, app.sampler), app.engine.parts.map { it.engine })
+        // The FX page holds six effects with four knobs each.
+        val fxPage = pager(ctl.get()).getChildAt(5)
+        assertEquals(24, knobs(fxPage).size)
+        ctl.destroy()
+    }
+
+    @Test(timeout = 120000)
+    fun effectSettingsAreSavedAndRestored() {
+        val ctl = Robolectric.buildActivity(MainActivity::class.java).create()
+        val app = ctl.get().application as StudioApp
+        val flanger = app.fx.effect(com.vtlo.fx.FxId.FLANGER)
+        flanger.on = true
+        flanger.set(2, 0.77f)
+        app.fx.effect(com.vtlo.fx.FxId.BEAT_REPEAT).set(0, 1f) // grid 1/32
+        app.save()
+        ctl.destroy()
+
+        // Rebuild the engine from the saved preferences, as a restart would.
+        val create = StudioApp::class.java.getDeclaredMethod("createEngine", Int::class.javaPrimitiveType)
+        create.isAccessible = true
+        create.invoke(app, 48000)
+        val restored = app.fx.effect(com.vtlo.fx.FxId.FLANGER)
+        assertTrue(restored.on)
+        assertEquals(0.77f, restored.get(2), 0f)
+        assertEquals(1f, app.fx.effect(com.vtlo.fx.FxId.BEAT_REPEAT).get(0), 0f)
+        assertTrue(!app.fx.effect(com.vtlo.fx.FxId.CHORUS).on)
     }
 }

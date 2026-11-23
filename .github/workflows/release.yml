@@ -1,13 +1,13 @@
 name: Release
 
 # Publishes the files in downloads/ as a GitHub release.
-#   Actions > Release > Run workflow (tag defaults to v1.0.0)
+#   Actions > Release > Run workflow (tag defaults to v1.1.0)
 on:
   workflow_dispatch:
     inputs:
       tag:
         description: Release tag
-        default: v1.0.0
+        default: v1.1.0
         required: true
 
 permissions:
@@ -31,13 +31,13 @@ jobs:
           TAG: ${{ inputs.tag }}
         run: |
           cat > notes.md <<'NOTES'
-          Ready-to-install builds of **VTLO 3O3**: two TB-303 bass lines, two 606/808/909 drum machines and a sampler, on one transport.
+          Ready-to-install builds of **VTLO 3O3**: two TB-303 bass lines, two 606/808/909 drum machines, a sampler and six master effects (beat repeat, flanger, chorus, warble, vowel, ghost), on one transport.
 
           | Platform | File |
           |---|---|
           | Android 8.0+ | `VTLO-3O3-android.apk` |
           | Windows 10/11 x64 installer | `VTLO-3O3-Setup-windows-x64.exe` |
-          | Linux, Debian/Ubuntu | `vtlo-3o3_1.0.0_amd64.deb` (`sudo apt install ./vtlo-3o3_1.0.0_amd64.deb`) |
+          | Linux, Debian/Ubuntu | `vtlo-3o3_1.1.0_amd64.deb` (`sudo apt install ./vtlo-3o3_1.1.0_amd64.deb`) |
           | Linux, any distribution | `VTLO-3O3-linux-x64.tar.gz` (unpack and run) |
           | Browser version, Windows and Linux | `VTLO-303-web-windows-linux.zip` (run the launcher inside) |
 

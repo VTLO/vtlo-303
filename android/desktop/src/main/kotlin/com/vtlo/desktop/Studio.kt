@@ -57,7 +57,12 @@ class Studio(private val dataDir: File, val sampleRate: Int = pickOutputRate()) 
         restoreBass(bass2, "bass2")
         if (!restoreDrums(drums2, "drums2")) for (t in 0 until Kit.TRACKS) drums2.setKit(t, DrumPresets.all[0].kit)
         engine = StudioEngine(bass, drums, sampler, bass2, drums2)
-        engine.parts.forEachIndexed { i, part -> part.on = props.getProperty("part$i", "true").toBoolean() }
+        // Part switches are keyed by name; saves from before the pages were regrouped used the old index order.
+        engine.parts.forEachIndexed { i, part ->
+            val name = PART_NAMES[i]
+            part.on = (props.getProperty("part.$name") ?: props.getProperty("part${LEGACY_ORDER.indexOf(name)}") ?: "true").toBoolean()
+        }
+        restoreFx()
         output = AudioOutput(engine, sampleRate)
     }
 
@@ -124,13 +129,24 @@ class Studio(private val dataDir: File, val sampleRate: Int = pickOutputRate()) 
             p["sampler.p$pad.mute"] = sampler.isMuted(pad).toString()
             p["sampler.p$pad.name"] = sampler.padNames[pad]
         }
-        engine.parts.forEachIndexed { i, part -> p["part$i"] = part.on.toString() }
+        engine.parts.forEachIndexed { i, part -> p["part.${PART_NAMES[i]}"] = part.on.toString() }
+        engine.fx.effects.forEach { e ->
+            p["fx.${e.id.key}.on"] = e.on.toString()
+            e.params.forEachIndexed { i, param -> p["fx.${e.id.key}.${param.key}"] = e.get(i).toString() }
+        }
 
         dataDir.mkdirs()
         val tmp = File(dataDir, "studio.properties.tmp")
         tmp.outputStream().use { p.store(it, "VTLO 3O3 desktop state") }
         if (!tmp.renameTo(stateFile)) {
             stateFile.delete(); tmp.renameTo(stateFile)
+        }
+    }
+
+    private fun restoreFx() {
+        engine.fx.effects.forEach { e ->
+            e.params.forEachIndexed { i, param -> e.set(i, f("fx.${e.id.key}.${param.key}", param.default)) }
+            e.on = props.getProperty("fx.${e.id.key}.on").toBoolean()
         }
     }
 
@@ -194,6 +210,12 @@ class Studio(private val dataDir: File, val sampleRate: Int = pickOutputRate()) 
     }
 
     companion object {
+        /** Names of the parts, in part order (bass 1, bass 2, drums 1, drums 2, sampler). */
+        private val PART_NAMES = listOf("bass", "bass2", "drums", "drums2", "sampler")
+
+        /** The order the part switches were saved in before the pages were regrouped. */
+        private val LEGACY_ORDER = listOf("bass", "drums", "sampler", "bass2", "drums2")
+
         /** Bump when the bundled kits change so the converted cache is rebuilt. */
         private const val CACHE_KEY = "v1"
 

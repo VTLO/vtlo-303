@@ -29,9 +29,9 @@ Then open http://localhost:3000
 <img src="assets/vtlo-coin.gif" width="96" align="right" alt="VTLO two-faced coin emblem">
 
 **VTLO 3O3** is a standalone, fully offline studio for Android: two TB-303 bass
-lines, two 606/808/909 drum machines and a sampler on five screens you swipe
-between (or pick with the tabs at the top: BASS 1, DRUMS 1, SAMPLER, BASS 2,
-DRUMS 2). Native Kotlin, no WebView, no
+lines, two 606/808/909 drum machines, a sampler and a master effects rack on six
+screens you swipe between (or pick with the tabs at the top: BASS 1, BASS 2,
+DRUMS 1, DRUMS 2, SAMPLER, FX). Native Kotlin, no WebView, no
 third-party libraries; it targets **Android 17 (API 37)** and runs on
 Android 8.0 (API 26) and newer. Permissions: foreground service and
 notifications (background playback) and the microphone, which is only asked
@@ -39,11 +39,13 @@ for the first time you press REC.
 
 **Studio**
 - One transport: RUN on any screen starts all five instruments on the same
-  sample, and they share tempo and swing, so they stay locked. The B1, D1,
-  SMP, B2 and D2 ON/OFF buttons take a part out of the mix without stopping it.
+  sample, and they share tempo and swing, so they stay locked. The B1, B2,
+  D1, D2 and SMP ON/OFF buttons take a part out of the mix without stopping it.
 - BASS 2 and DRUMS 2 are full, independent copies of the first bass line and
   drum machine, with their own patterns, sounds, kits and saved state. They
   start with empty patterns, so the mix is unchanged until you program them.
+- **FX page**: six master effects in series on the whole mix, each with an ON
+  switch and four knobs, saved with the rest of the state (see below).
 - Orientation option in the top bar: LANDSCAPE (default), PORTRAIT or AUTO
   ROTATE, remembered between launches. Landscape fits every control of a
   screen on one display, scaled to the window; portrait scrolls. Large screens
@@ -119,6 +121,23 @@ Requires JDK 17+ and the Android SDK with `platforms;android-37.0` and
 if present, otherwise with the local debug key. CI builds the APK on every push
 (see the "Android APK" workflow artifact `vtlo-3o3-apk`).
 
+### Master effects (FX page)
+
+Six effects, in this chain order, act on the whole mix just before the limiter.
+All are in `android/engine` (`com.vtlo.fx`), pure Kotlin shared by Android and desktop,
+and each switches in and out with a short crossfade.
+
+| Effect | What it does | Knobs |
+|---|---|---|
+| **Beat Repeat** | Captures the last slice of the mix when switched on and loops it, locked to the studio tempo; the live signal returns on release | GRID (1/2 to 1/32), GATE, DECAY, MIX |
+| **Warble** *(original)* | Worn tape: slow wow and fast flutter bend the pitch, a random drift keeps it from repeating, HEAT adds saturation and rolls off the highs | WOW, FLUTTER, HEAT, MIX |
+| **Vowel** *(original)* | A talking filter: three resonant band-passes on the formants of A, E, I, O, U, swept by an LFO (opposite phase left and right) | VOWEL, RATE, DEPTH, MIX |
+| **Flanger** | Swept comb filter with feedback, quadrature LFO per channel | RATE, DEPTH, FEEDBACK, MIX |
+| **Chorus** | Three detuned voices per channel with Hermite-interpolated delays | RATE, DEPTH, SPREAD, MIX |
+| **Ghost** *(original)* | Reverse echoes: overlapping windowed grains read the signal backwards, fed back so repeats reverse again | TIME, FEEDBACK, TONE, MIX |
+
+The effects apply live to the master bus; WAV exports render each instrument on its own, without them.
+
 ### Emblem
 
 Both the Android studio and the Windows app show the two-faced VTLO coin
@@ -135,7 +154,7 @@ Ready-to-install builds, committed to the repository (checksums in `SHA256SUMS`)
 |---|---|
 | Android 8.0+ (APK) | `VTLO-3O3-android.apk` |
 | Windows 10/11 x64 installer | `VTLO-3O3-Setup-windows-x64.exe` |
-| Linux, Debian/Ubuntu (`sudo apt install ./vtlo-3o3_1.0.0_amd64.deb`) | `vtlo-3o3_1.0.0_amd64.deb` |
+| Linux, Debian/Ubuntu (`sudo apt install ./vtlo-3o3_1.1.0_amd64.deb`) | `vtlo-3o3_1.1.0_amd64.deb` |
 | Linux, any distribution (unpack and run) | `VTLO-3O3-linux-x64.tar.gz` |
 | Browser version for Windows and Linux (launchers included) | `VTLO-303-web-windows-linux.zip` |
 
@@ -146,7 +165,7 @@ Rebuild them with `android/desktop/packaging/build-portable.sh` (Windows),
 
 ## Windows app (`android/desktop`)
 
-The same studio for the computer: the five instruments on five screens (tabs
+The same studio for the computer: the five instruments and the FX page on six screens (tabs
 at the top), running the very same `engine` code as the Android app, so they
 sound identical. Swing UI drawn to scale like the Android landscape layout
 (resize the window freely), Java Sound for output and the microphone, no
@@ -156,7 +175,7 @@ third-party libraries.
   below). The "Android APK and Windows app" workflow also publishes
   `vtlo-3o3-windows`, a folder with `VTLO 3O3.exe` and its own Java runtime
   (built with `jpackage`). Unzip anywhere and run; nothing to install.
-- **Keys**: Space run/stop, Tab next screen (F1–F5 jump), Esc panic; bass line
+- **Keys**: Space run/stop, Tab next screen (F1–F6 jump), Esc panic; bass line
   keyboard on Z S X D C V G B H N J M , ; sampler pads on Q W E R / A S D F.
   Right-click a step for gate (bass) or accent (drums, sampler); knobs take
   drag, mouse wheel, and double-click to reset.

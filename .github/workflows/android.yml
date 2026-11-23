@@ -57,7 +57,7 @@ jobs:
 
       - name: Package Windows app (jpackage app image with VTLO 3O3.exe)
         run: |
-          jpackage --type app-image --name "VTLO 3O3" --app-version 1.0.0 --vendor VTLO \
+          jpackage --type app-image --name "VTLO 3O3" --app-version 1.1.0 --vendor VTLO \
             --description "VTLO 3O3 studio: bass line, drum machine, sampler" \
             --icon desktop/packaging/vtlo-3o3.ico \
             --input desktop/build/install/vtlo-3o3/lib --main-jar desktop.jar \

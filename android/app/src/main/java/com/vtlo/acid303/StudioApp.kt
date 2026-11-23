@@ -26,6 +26,7 @@ class StudioApp : InstrumentApp() {
     val sampler: SamplerEngine get() = engine.sampler
     val bass2: AcidEngine get() = engine.bass2
     val drums2: DrumEngine get() = engine.drums2
+    val fx get() = engine.fx
     private lateinit var drumSamples: SampleBank
 
     override val mainActivity get() = MainActivity::class.java
@@ -61,6 +62,7 @@ class StudioApp : InstrumentApp() {
         // The first bass line's tempo and swing win at start-up; StudioEngine keeps them in step after.
         engine = StudioEngine(bass, drums, sampler, bass2, drums2)
         engine.parts.forEachIndexed { i, part -> part.on = prefs().getBoolean(PART_KEYS[i], true) }
+        restoreFx()
     }
 
     /** First run: fill the pads with sounds from the bundled kits so the sampler plays at once. */
@@ -88,10 +90,22 @@ class StudioApp : InstrumentApp() {
             saveBass(this, bass, "")
             saveBass(this, bass2, PREFIX_2)
             engine.parts.forEachIndexed { i, part -> putBoolean(PART_KEYS[i], part.on) }
+            fx.effects.forEach { e ->
+                putBoolean("fx_${e.id.key}_on", e.on)
+                e.params.forEachIndexed { i, p -> putFloat("fx_${e.id.key}_${p.key}", e.get(i)) }
+            }
         }.apply()
         DrumStore.save(this, drums)
         DrumStore.save(this, drums2, number = 2)
         SamplerStore.save(this, sampler)
+    }
+
+    private fun restoreFx() {
+        val p = prefs()
+        fx.effects.forEach { e ->
+            e.params.forEachIndexed { i, param -> e.set(i, p.getFloat("fx_${e.id.key}_${param.key}", param.default)) }
+            e.on = p.getBoolean("fx_${e.id.key}_on", false)
+        }
     }
 
     /** The first bass line keeps its original preference keys; the second one's carry [prefix]. */
@@ -115,6 +129,7 @@ class StudioApp : InstrumentApp() {
         const val KEY_PATTERNS = "patterns"
         const val KEY_SELECTED = "selected"
         const val PREFIX_2 = "b2_"
-        val PART_KEYS = listOf("bass_on", "drums_on", "sampler_on", "bass2_on", "drums2_on")
+        // In part order (bass 1, bass 2, drums 1, drums 2, sampler); keyed by name so older saves still apply.
+        val PART_KEYS = listOf("bass_on", "bass2_on", "drums_on", "drums2_on", "sampler_on")
     }
 }

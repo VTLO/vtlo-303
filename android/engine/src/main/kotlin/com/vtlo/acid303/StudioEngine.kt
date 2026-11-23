@@ -4,6 +4,7 @@ import com.vtlo.acid303.dsp.AcidEngine
 import com.vtlo.acid303.dsp.Param
 import com.vtlo.core.audio.SequencerEngine
 import com.vtlo.core.dsp.SoftLimiter
+import com.vtlo.fx.FxRack
 import com.vtlo.drums.dsp.DrumEngine
 import com.vtlo.drums.dsp.DrumParam
 import com.vtlo.sampler.dsp.SamplerEngine
@@ -15,7 +16,8 @@ import kotlin.math.exp
  * audio callback, start on the same sample and share tempo and swing, so they
  * stay locked. Each part can be switched out of the mix (it keeps running in time).
  *
- * [parts] are in page order: bass line, drums, sampler, then the second bass line and second drums.
+ * [parts] are in page order: bass line 1 and 2, drums 1 and 2, then the sampler. The master
+ * [fx] rack (flanger, chorus, beat repeat and more) processes the summed mix before the limiter.
  */
 class StudioEngine(
     val bass: AcidEngine,
@@ -24,6 +26,9 @@ class StudioEngine(
     val bass2: AcidEngine,
     val drums2: DrumEngine,
 ) : SequencerEngine {
+
+    /** Master effects, applied to the whole mix. */
+    val fx = FxRack(bass.sampleRate)
 
     /** One instrument in the mix, with access to its (normalized) tempo and swing. */
     class Part(
@@ -39,15 +44,18 @@ class StudioEngine(
     val parts = listOf(
         Part(bass, { bass.get(Param.TEMPO) }, { bass.set(Param.TEMPO, it) },
             { bass.get(Param.SWING) }, { bass.set(Param.SWING, it) }),
-        Part(drums, { drums.get(DrumParam.TEMPO) }, { drums.set(DrumParam.TEMPO, it) },
-            { drums.get(DrumParam.SWING) }, { drums.set(DrumParam.SWING, it) }),
-        Part(sampler, { sampler.get(SamplerParam.TEMPO) }, { sampler.set(SamplerParam.TEMPO, it) },
-            { sampler.get(SamplerParam.SWING) }, { sampler.set(SamplerParam.SWING, it) }),
         Part(bass2, { bass2.get(Param.TEMPO) }, { bass2.set(Param.TEMPO, it) },
             { bass2.get(Param.SWING) }, { bass2.set(Param.SWING, it) }),
+        Part(drums, { drums.get(DrumParam.TEMPO) }, { drums.set(DrumParam.TEMPO, it) },
+            { drums.get(DrumParam.SWING) }, { drums.set(DrumParam.SWING, it) }),
         Part(drums2, { drums2.get(DrumParam.TEMPO) }, { drums2.set(DrumParam.TEMPO, it) },
             { drums2.get(DrumParam.SWING) }, { drums2.set(DrumParam.SWING, it) }),
+        Part(sampler, { sampler.get(SamplerParam.TEMPO) }, { sampler.set(SamplerParam.TEMPO, it) },
+            { sampler.get(SamplerParam.SWING) }, { sampler.set(SamplerParam.SWING, it) }),
     )
+
+    /** The part that plays [engine], for callers that think in instruments rather than page order. */
+    fun partOf(engine: SequencerEngine): Part = parts.first { it.engine === engine }
 
     override val isPlaying: Boolean get() = parts.any { it.engine.isPlaying }
 
@@ -63,7 +71,10 @@ class StudioEngine(
 
     override fun play() = parts.forEach { it.engine.play() }
     override fun stop() = parts.forEach { it.engine.stop() }
-    override fun panic() = parts.forEach { it.engine.panic() }
+    override fun panic() {
+        parts.forEach { it.engine.panic() }
+        fx.reset()
+    }
 
     /**
      * Whichever part's tempo or swing knob moved last sets it for all. All parts
@@ -112,6 +123,7 @@ class StudioEngine(
             }
             p.gain = g
         }
+        fx.process(out, frames, Param.normToBpm(bass.get(Param.TEMPO)))
         for (i in 0 until n) out[i] = SoftLimiter.process(out[i].toDouble()).toFloat()
     }
 }

@@ -30,7 +30,7 @@ interface GuidePen {
 
 enum class GuideInput { TOUCH, DESKTOP }
 
-enum class GuideArt { WELCOME, SCREENS, RUN, STEPS, KNOB, SAMPLER, END }
+enum class GuideArt { WELCOME, SCREENS, RUN, STEPS, KNOB, SAMPLER, FX, END }
 
 class GuidePage(val title: String, val body: String, val art: GuideArt)
 
@@ -40,14 +40,14 @@ object Guide {
         return listOf(
             GuidePage(
                 "Bienvenue dans VTLO 3O3",
-                "Un studio de poche\u00A0: deux lignes de basse 303, deux boîtes à rythmes et un sampler, " +
+                "Un studio de poche\u00A0: deux lignes de basse 303, deux boîtes à rythmes, un sampler et six effets, " +
                     "tous calés sur le même tempo.",
                 GuideArt.WELCOME,
             ),
             GuidePage(
-                "Cinq écrans",
-                (if (touch) "Glissez vers la gauche ou la droite, ou touchez un onglet\u00A0: BASS\u00A01, DRUMS\u00A01, SAMPLER, puis BASS\u00A02 et DRUMS\u00A02. "
-                else "Cliquez sur un onglet, ou passez de l'un à l'autre avec TAB et F1\u00A0à\u00A0F5. ") +
+                "Six écrans",
+                (if (touch) "Glissez vers la gauche ou la droite, ou touchez un onglet\u00A0: basses, batteries, SAMPLER, puis FX. "
+                else "Cliquez sur un onglet, ou passez de l'un à l'autre avec TAB et F1\u00A0à\u00A0F6. ") +
                     "BASS\u00A02 et DRUMS\u00A02 démarrent vides, prêts à être remplis.",
                 GuideArt.SCREENS,
             ),
@@ -55,7 +55,7 @@ object Guide {
                 "Lancer la musique",
                 (if (touch) "RUN démarre et arrête tous les instruments ensemble. "
                 else "RUN (ou la barre ESPACE) démarre et arrête tous les instruments ensemble. ") +
-                    "Les boutons B1, D1, SMP, B2 et D2 ajoutent chaque instrument au mix ou l'en retirent.",
+                    "Les boutons B1, B2, D1, D2 et SMP ajoutent chaque instrument au mix ou l'en retirent.",
                 GuideArt.RUN,
             ),
             GuidePage(
@@ -77,6 +77,12 @@ object Guide {
                 "Choisissez un pad, puis REC pour enregistrer au micro ou LOAD pour importer un son. " +
                     "Réglez ensuite filtre, bitcrusher et drive, et placez-le dans la grille.",
                 GuideArt.SAMPLER,
+            ),
+            GuidePage(
+                "Les effets",
+                "L'onglet FX réunit six effets qui traitent tout le mix, dans l'ordre\u00A0: Beat Repeat boucle la dernière tranche, " +
+                    "Warble et Vowel colorent le son, Flanger, Chorus et Ghost lui donnent de l'espace. Allumez-les avec ON.",
+                GuideArt.FX,
             ),
             GuidePage(
                 "À vous de jouer\u00A0!",
@@ -367,6 +373,25 @@ class GuideOverlay(val pages: List<GuidePage>, private val animate: Boolean = tr
                     val lx = wx + ww * k / n
                     pen.line(lx, my - amp, lx, my + amp, fade(LED, a), 2f)
                 }
+            }
+            GuideArt.FX -> {
+                // A pulse travels down the effects chain, lighting each effect it passes.
+                val names = listOf("MIX", "REP", "WRB", "VOW", "FLG", "CHO", "GHO", "OUT")
+                val n = names.size
+                val gap = 10f
+                val bw = min(46f, (w - 24f - (n - 1) * gap) / n)
+                val x0 = mx - (n * bw + (n - 1) * gap) / 2f
+                val head = (t / 3.4f % 1f) * (n - 1 + 0.8f) - 0.4f
+                for (i in 0 until n) {
+                    val lit = i in 1..n - 2 && abs(head - i) < 0.5f
+                    val bx = x0 + i * (bw + gap)
+                    pen.fillRound(bx, my - 14f, bw, 28f, 6f, fade(if (lit) 0xFF2E2C2A.toInt() else PANEL, a))
+                    if (lit) pen.strokeRound(bx, my - 14f, bw, 28f, 6f, fade(RED, a), 2f)
+                    pen.text(names[i], bx + bw / 2f, my + 4f, 9f, fade(if (lit) WHITE else 0xFF1A1816.toInt(), a), true, 0)
+                    if (i < n - 1) pen.line(bx + bw + 2f, my, bx + bw + gap - 2f, my, fade(EDGE, a), 2f)
+                }
+                val px = x0 + head * (bw + gap) + bw / 2f
+                if (head in -0.4f..(n - 0.2f)) pen.fillCircle(px, my + 26f, 4f, fade(RED, a))
             }
             GuideArt.END -> {
                 val r = h * 0.3f

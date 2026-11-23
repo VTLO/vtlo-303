@@ -88,9 +88,10 @@ class StudioEngineTest {
     fun secondBassAndDrumsAreIndependentInstrumentsInTheSameMix() {
         val s = studio()
         assertEquals(5, s.parts.size)
-        assertTrue(s.parts[3].engine === s.bass2 && s.parts[4].engine === s.drums2)
+        // Page order groups the instruments: bass 1 and 2, drums 1 and 2, then the sampler.
+        assertEquals(listOf<Any>(s.bass, s.bass2, s.drums, s.drums2, s.sampler), s.parts.map { it.engine })
         // Fresh second instruments are silent: the original mix is untouched until they are programmed.
-        s.parts[0].on = false; s.parts[1].on = false; s.parts[2].on = false
+        s.partOf(s.bass).on = false; s.partOf(s.drums).on = false; s.partOf(s.sampler).on = false
         s.play()
         val buf = FloatArray(1024)
         var peak = 0f
@@ -106,7 +107,7 @@ class StudioEngineTest {
         assertEquals(s.bass.currentStep, s.bass2.currentStep)
         assertEquals(s.drums.currentStep, s.drums2.currentStep)
 
-        s.parts[3].on = false; s.parts[4].on = false
+        s.partOf(s.bass2).on = false; s.partOf(s.drums2).on = false
         repeat(20) { s.render(buf, 512) }
         peak = 0f
         repeat(20) { s.render(buf, 512); peak = maxOf(peak, buf.maxOf { abs(it) }) }
@@ -117,5 +118,44 @@ class StudioEngineTest {
         s.render(buf, 64)
         assertEquals(133f, Param.normToBpm(s.bass.get(Param.TEMPO)), 0.01f)
         assertEquals(133f, DrumParam.normToBpm(s.drums2.get(DrumParam.TEMPO)), 0.01f)
+    }
+
+    private fun render(s: StudioEngine, blocks: Int): FloatArray {
+        val all = FloatArray(blocks * 1024)
+        val buf = FloatArray(1024)
+        s.play()
+        for (b in 0 until blocks) {
+            s.render(buf, 512)
+            System.arraycopy(buf, 0, all, b * 1024, 1024)
+        }
+        return all
+    }
+
+    @Test
+    fun masterFxProcessTheMixAndStayOffByDefault() {
+        val plain = render(studio(), 80)
+        val fxOff = studio().also { it.fx.effects.forEach { e -> e.set(3, 1f) } } // knobs alone change nothing
+        assertTrue(plain.contentEquals(render(fxOff, 80)))
+        assertTrue(!fxOff.fx.anyOn)
+
+        val withFx = studio().also { s ->
+            s.fx.effect(com.vtlo.fx.FxId.CHORUS).apply { set(3, 1f); on = true }
+            s.fx.effect(com.vtlo.fx.FxId.FLANGER).apply { set(3, 1f); on = true }
+        }
+        val processed = render(withFx, 80)
+        assertTrue(processed.all { it.isFinite() && abs(it) <= 1f })
+        assertTrue("FX change the mix", processed.indices.any { abs(processed[it] - plain[it]) > 0.01f })
+    }
+
+    @Test
+    fun panicResetsTheEffectTails() {
+        val s = studio()
+        s.fx.effect(com.vtlo.fx.FxId.GHOST).apply { set(1, 0.85f); set(3, 1f); on = true }
+        render(s, 60)
+        s.panic()
+        s.parts.forEach { it.on = false }
+        val buf = FloatArray(1024)
+        repeat(30) { s.render(buf, 512) }
+        assertEquals(0f, buf.maxOf { abs(it) }, 1e-4f)
     }
 }
