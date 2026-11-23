@@ -92,6 +92,23 @@ body {
   touch-action: pan-y;
 }
 
+/* ─── Animated banner ───────────────────────────── */
+
+.site-banner {
+  display: block;
+  width: 100%;
+  max-width: 940px;
+  height: auto;
+  margin: 0 0 12px;
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  /* Above the power-on overlay so it is the first thing you see. */
+  position: relative;
+  z-index: 1001;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
 /* ─── Power-on overlay ──────────────────────────── */
 
 .power-overlay {
@@ -103,6 +120,8 @@ body {
   justify-content: center;
   z-index: 1000;
   transition: opacity 0.4s;
+  /* Keep the title and button clear of the banner above. */
+  padding-top: calc(min(940px, 100vw - 24px) * 0.2334 + 24px);
 }
 
 .power-overlay.hidden {
