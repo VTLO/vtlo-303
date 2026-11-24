@@ -3,12 +3,11 @@
 </p>
 
 <p align="center">
- <a href="assets/guide.mp4" title="Video guide, 1 min 46 s, with sound"><img src="assets/guide.webp" width="640" alt="Video guide: a begineer's mod track built live, from the first kick to the effects"></a>
+ <a href="assets/guide.mp4" title="Begineer's Guide for Quick Edit"><img src="assets/guide.webp" width="640" alt="Begineer's Guide for Quick Edit"></a>
 </p>
 
 <p align="center">
-  <a href="assets/live-set.mp4" title="Live set video, 1 min 27 s, with sound: part 1 UK drum and bass, part 2 hardtekno tribe"><img src="assets/live-set.webp" width="640" alt="Live set video: UK drum and bass at 170 BPM, then hardtekno tribe at 155 BPM, played with scenes"></a>
-  <br><sub>Live set (1 min 27 s): part 1 UK drum and bass, part 2 hardtekno tribe</sub>
+  <a href="assets/live-set.mp4" title="Easy way User's Manual"><img src="assets/live-set.webp" width="640" alt="Easy way User's Manual"></a>
 </p>
 
 # VTLO 303

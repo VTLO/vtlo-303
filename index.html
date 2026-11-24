@@ -38,14 +38,14 @@
         poster="assets/guide-poster.jpg"
         width="960"
         height="540"
-        aria-label="Video guide: getting started with VTLO 3O3, captioned in English, with a tekno soundtrack"
+        aria-label="Begineer's Guide for Quick Edit"
       >
         <source src="assets/guide.webm" type='video/webm; codecs="vp9, opus"' />
         <source src="assets/guide.mp4" type='video/mp4; codecs="avc1.4D401F, mp4a.40.2"' />
       </video>
       <div class="guide-tabs" role="group" aria-label="Choose the video">
-        <button type="button" class="on" data-clip="guide" aria-pressed="true">GUIDE</button>
-        <button type="button" data-clip="live-set" aria-pressed="false">LIVE SET: DNB + HARDTEK</button>
+        <button type="button" class="on" data-clip="guide" aria-pressed="true">BEGINEER'S GUIDE FOR QUICK EDIT</button>
+        <button type="button" data-clip="live-set" aria-pressed="false">EASY WAY USER'S MANUAL</button>
       </div>
     </div>
     <div id="tb303" class="tb303-panel">
@@ -530,7 +530,7 @@
             v.innerHTML =
               '<source src="assets/' + clip + '.webm" type=\'video/webm; codecs="vp9, opus"\' />' +
               '<source src="assets/' + clip + '.mp4" type=\'video/mp4; codecs="avc1.4D401F, mp4a.40.2"\' />';
-            v.setAttribute("aria-label", clip === "guide" ? "Video guide: getting started with VTLO 3O3" : "Live set: UK drum and bass, then hardtekno tribe");
+            v.setAttribute("aria-label", clip === "guide" ? "Begineer's Guide for Quick Edit" : "Easy way User's Manual");
             v.load();
             v.play().catch(function () {});
           });
