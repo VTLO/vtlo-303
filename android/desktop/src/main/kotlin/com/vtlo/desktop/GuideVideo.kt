@@ -2,7 +2,10 @@ package com.vtlo.desktop
 
 import com.vtlo.desktop.ui.Coin
 import com.vtlo.desktop.ui.GridStep
+import com.vtlo.desktop.ui.Keys
 import com.vtlo.desktop.ui.Knob
+import com.vtlo.desktop.ui.NoteStep
+import com.vtlo.desktop.ui.TrackPad
 import com.vtlo.desktop.ui.MpcPad
 import com.vtlo.desktop.ui.Pad
 import com.vtlo.desktop.ui.StudioWindow
@@ -170,74 +173,128 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
         }
     }
 
-    private fun script() {
-        // Music: the transport starts under the title card, the drums alone; parts join one by one.
-        at(0.6) { window.toggleTransport() }
-        GuideMusic.arrange(studio, ::at, 0.6, endAt, fps)
+    /** The Nth widget of a kind on the current page. */
+    private inline fun <reified T : Widget> nth(i: Int): Widget? = window.scriptWidgets().filterIsInstance<T>().getOrNull(i)
 
-        // The title card runs until 3.4 s.
-        caption(3.2, "Six screens: basses, drums, sampler and effects")
-        click(4.0) { tab("BASS 2") }
-        click(5.0) { tab("DRUMS 1") }
-        click(6.0) { tab("DRUMS 2") }
-        click(7.0) { tab("SAMPLER") }
-        click(8.0) { tab("FX") }
-        click(9.0) { tab("DRUMS 1") }
+    private fun trackName(tr: Int) = nth<TrackPad>(tr)
 
-                caption(9.8, "Every instrument is locked to the same tempo: build-up, roll, then the drop")
+    private fun gridStep(tr: Int, step: Int): Widget? =
+        window.scriptWidgets().filterIsInstance<GridStep>().firstOrNull { abs(it.y - (288f + tr * 29.5f)) < 1f && abs(it.x - (152f + step * 52f)) < 1f }
 
-        // The tribal toms are programmed live: 3 + 3 + 3 + 3 + 4 steps.
-        caption(13.4, "Click a step to program it")
-        for ((k, step) in intArrayOf(0, 3, 6, 9, 12).withIndex()) {
-            click(14.2 + k * 0.8, lead = 0.55) {
-                window.scriptWidgets().filterIsInstance<GridStep>().firstOrNull { abs(it.y - (288f + 2 * 29.5f)) < 1f && abs(it.x - (152f + step * 52f)) < 1f }
-            }
-        }
-
-        caption(18.6, "Drag a knob to shape the sound")
-        click(18.8) { tab("BASS 1") }
-        drag(20.4, 1.5, 0f, -85f) { knobLabelled("CUT OFF") }
-        drag(22.4, 1.1, 0f, 60f) { knobLabelled("CUT OFF") }
-        drag(23.6, 1.2, 0f, -70f) { knobLabelled("RESO") }
-
-        caption(25.2, "Under each instrument, ▲ PADS opens 16 pads")
-        click(25.6) { tab("DRUMS 1") }
-        click(27.0) { pad("▲  PADS") }
-
-        caption(28.2, "Arm REC, then tap a rhythm: it's recorded as a loop of 8 or 16 bars")
-        click(29.0) { pad("REC") }
-        // A tribal percussion phrase over two bars, planned on the 16th grid: rim shots, accented claps, an open hat.
-        at(29.6) {
-            val base = Math.ceil(beatAt(31.2) / 4.0) * 4.0
-            val phrase = listOf(
-                0.75 to 4, 1.5 to 4, 2.0 to 11, 2.75 to 4, 3.5 to 4,
-                4.75 to 4, 5.5 to 4, 6.0 to 11, 6.75 to 6, 7.25 to 4, 7.5 to 3,
-            )
-            for ((offset, pad) in phrase) tapPad(base + offset, pad)
-            click(timeOf(base + 8.0) + 1.0) { pad("REC") } // disarm after the phrase
-        }
-
-        caption(36.2, "Choose a loop of 8 or 16 bars")
-        click(38.4) { pad("16 BARS") }
-        click(39.4) { pad("8 BARS") }
-
-        // At 150 BPM the 8-bar loop is 12.8 s long, so the recorded phrase returns around 45 s.
-        caption(45.2, "The loop keeps playing, layer after layer; UNDO and CLEAR fix mistakes")
-
-        caption(47.2, "FX tab: six effects on the whole mix; SYNC locks them to the tempo")
-        click(47.4) { tab("FX") }
-        click(49.0) { fxToggle(3) } // flanger on
-        click(50.1) { pad("SYNC", 3) }
-        drag(51.2, 1.0, 0f, -34f) { knob(3 * 4) } // flanger rate: now a note length
-        click(52.8) { fxToggle(4) } // chorus on
-        click(53.9) { fxToggle(5) } // ghost on: reversed echoes
-        click(55.2) { fxToggle(0) } // beat repeat on: a stutter roll to the end
-    }
-
+    /** A pad that looks the same in the page's two states (OFF / ON, RUN / STOP). */
     private fun fxToggle(i: Int): Widget? = window.scriptWidgets().filterIsInstance<Pad>().filter { it.text == "OFF" || it.text == "ON" }.getOrNull(i)
 
-    private val endAt = 58.2
-    private val totalSeconds = 60.7
+    /** A key of the on-screen piano, by semitone above its lowest C. */
+    private fun pianoKey(semitone: Int): Widget? {
+        val keys = window.scriptWidgets().filterIsInstance<Keys>().firstOrNull() ?: return null
+        val white = intArrayOf(0, 2, 4, 5, 7, 9, 11, 12)
+        val black = intArrayOf(1, 3, 6, 8, 10)
+        val blackPos = floatArrayOf(1f, 2f, 4f, 5f, 6f)
+        val ww = keys.w / 8
+        val (cx, cy) = if (semitone in white) {
+            (keys.x + (white.indexOf(semitone) + 0.5f) * ww) to (keys.y + keys.h * 0.8f)
+        } else {
+            (keys.x + blackPos[black.indexOf(semitone)] * ww) to (keys.y + keys.h * 0.3f)
+        }
+        return object : Widget() {
+            init { x = cx - 4f; y = cy - 4f; w = 8f; h = 8f }
+            override fun paint(g: Graphics2D) {}
+        }
+    }
+
+    /** A knob turn: the pointer grabs it and moves by [dy] design units (up is negative); 200 units is the whole range. */
+    private fun turn(t: Double, seconds: Double, dy: Float, label: String) = drag(t, seconds, 0f, dy) { knobLabelled(label) }
+
+    /**
+     * The video is one live take: a track built from nothing through the real interface at 150 BPM.
+     * Every caption says what the pointer is about to do. Timings are in video seconds (one bar is 1.6 s).
+     */
+    private fun script() {
+        // ── 1. DRUMS 1: tap the beat, kick and snare only ──
+        at(0.2) { window.scriptSetPage(2) } // the app opens on BASS 1; the take starts on DRUMS 1 under the title card
+        caption(3.6, "DRUMS 1: a 909 kit. Start the transport, then tap the beat: a kick on every quarter note")
+        click(4.4) { runPad() }
+        for ((k, step) in intArrayOf(0, 4, 8, 12).withIndex()) click(6.0 + k * 0.8, lead = 0.5) { gridStep(0, step) }
+        caption(9.6, "Snare on beats 2 and 4")
+        for ((k, step) in intArrayOf(4, 12).withIndex()) click(10.2 + k * 0.8, lead = 0.5) { gridStep(1, step) }
+
+        // ── 2. Tone and drive, slowly ──
+        caption(12.4, "Select the kick, then lower TUNE: a deeper, heavier thump")
+        click(12.8) { trackName(0) }
+        turn(13.8, 2.6, 46f, "TUNE")
+        caption(16.8, "The same for the snare: tune it up for a sharper crack")
+        click(17.2) { trackName(1) }
+        turn(18.2, 2.0, -34f, "TUNE")
+        caption(20.6, "DRIVE saturates the whole kit: push it slowly")
+        turn(21.4, 4.6, -120f, "DRIVE")
+        caption(26.6, "Off-beat open hats complete the groove")
+        click(27.0) { trackName(6) }
+        for ((k, step) in intArrayOf(2, 6, 10, 14).withIndex()) click(27.8 + k * 0.7, lead = 0.4) { gridStep(6, step) }
+
+        // ── 3. BASS 2: an acid loop with only five notes ──
+        caption(31.2, "BASS 2: a TB-303 line. Five notes are enough: select a step, play a key")
+        click(31.6) { tab("BASS 2") }
+        // A minor: the keyboard starts on C, so A is 9 semitones up, C 12, G 7 and E 4.
+        click(32.8, lead = 0.6) { nth<NoteStep>(0) }; click(33.5, lead = 0.4) { pianoKey(9) }; click(34.2, lead = 0.4) { pad("ACCENT") }
+        click(35.1, lead = 0.5) { nth<NoteStep>(3) }; click(35.8, lead = 0.4) { pianoKey(9) }
+        caption(36.4, "ACCENT hits harder; SLIDE glides into the next note")
+        click(36.7, lead = 0.5) { nth<NoteStep>(6) }; click(37.4, lead = 0.4) { pianoKey(12) }; click(38.1, lead = 0.4) { pad("SLIDE") }
+        click(39.0, lead = 0.5) { nth<NoteStep>(7) }; click(39.7, lead = 0.4) { pianoKey(7) }
+        click(40.6, lead = 0.5) { nth<NoteStep>(10) }; click(41.3, lead = 0.4) { pianoKey(4) }; click(42.0, lead = 0.4) { pad("ACCENT") }
+
+        // ── 4. Knobs, one at a time ──
+        caption(43.2, "CUT OFF opens and closes the low-pass filter")
+        turn(44.0, 3.0, -110f, "CUT OFF")
+        turn(47.4, 1.6, 40f, "CUT OFF")
+        caption(49.4, "RESO: resonance, the acid squelch")
+        turn(50.2, 2.6, -70f, "RESO")
+        caption(53.4, "ENV MOD: how far each note opens the filter")
+        turn(54.2, 2.4, -60f, "ENV MOD")
+        caption(57.2, "DECAY: the length of each note")
+        turn(58.0, 2.2, 50f, "DECAY")
+        caption(61.0, "DRIVE adds grit, DELAY adds space")
+        turn(61.8, 1.8, -60f, "DRIVE")
+        turn(64.0, 1.8, -50f, "DELAY")
+        caption(66.4, "SAW or SQUARE: two oscillators, two characters")
+        click(67.0) { pad("SAW") }
+        click(69.0) { pad("SQUARE") }
+
+        // ── 5. The 16 pads and the loop recorder ──
+        caption(70.4, "Back on DRUMS 1: the 16 pads play the kit by hand")
+        click(70.8) { tab("DRUMS 1") }
+        click(72.2) { pad("▲  PADS") }
+        caption(73.4, "REC captures your taps as a loop of 8 or 16 bars, locked to the tempo")
+        click(74.0) { pad("REC") }
+        at(74.6) {
+            val base = Math.ceil(beatAt(76.4) / 4.0) * 4.0
+            val phrase = listOf(0.75 to 4, 1.5 to 4, 2.0 to 11, 2.75 to 4, 3.5 to 4, 4.75 to 4, 5.5 to 4, 6.0 to 11)
+            for ((offset, pad) in phrase) tapPad(base + offset, pad)
+            click(timeOf(base + 8.0) + 0.6) { pad("REC") }
+        }
+
+        // ── 6. Effects on the master ──
+        caption(84.0, "FX: six effects on the whole mix; SYNC locks them to the tempo")
+        click(84.4) { tab("FX") }
+        click(86.0) { fxToggle(3) } // flanger on
+        click(87.1) { pad("SYNC", 3) }
+        drag(88.2, 1.0, 0f, -34f) { nth<Knob>(3 * 4) } // flanger rate becomes a note length
+        click(89.8) { fxToggle(4) } // chorus on
+        click(91.0) { fxToggle(0) } // beat repeat on: a stutter
+        click(92.6) { fxToggle(0) } // and off
+
+        // ── 7. The rest of the studio ──
+        caption(93.4, "Six screens, one tempo: BASS 1, DRUMS 2 and the SAMPLER join the mix")
+        click(94.0) { tab("BASS 1") }
+        at(94.4) { GuideMusic.sub(studio) }
+        click(95.6) { tab("DRUMS 2") }
+        at(96.0) { GuideMusic.tribal(studio) }
+        click(97.2) { tab("SAMPLER") }
+        at(97.6) { GuideMusic.shimmer(studio) }
+        caption(99.0, "EXPORT renders any loop to WAV. Windows, Linux, Android and web")
+    }
+
+    private val endAt = 104.0
+    private val totalSeconds = 106.5
 
     // ─── Running ─────────────────────────────────────────────
 
@@ -310,7 +367,7 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
         g.drawImage(ui, 0, 0, null)
         drawCaption(g)
         // The title card fades out into the app; the end card fades in over it.
-        if (now < 3.4) card(g, "VTLO 3O3", "Video guide", "the pocket studio in under a minute", alpha = ((3.4 - now) / 0.6).coerceIn(0.0, 1.0))
+        if (now < 3.4) card(g, "VTLO 3O3", "Video guide", "build a track live, from the first kick", alpha = ((3.4 - now) / 0.6).coerceIn(0.0, 1.0))
         if (now > endAt - 0.6) card(g, "Have fun!", "VTLO 3O3", "github.com/VTLO/vtlo-303", alpha = ((now - (endAt - 0.6)) / 0.6).coerceIn(0.0, 1.0), coinBack = true)
         g.dispose()
         return out

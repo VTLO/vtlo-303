@@ -19,7 +19,7 @@ fps=15
 # for the web, and fade out under the closing card.
 dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$work/audio.wav")
 fade=$(python3 -c "print(max(0, $dur - 2.6))")
-af="loudnorm=I=-14:TP=-1.5:LRA=9,afade=t=out:st=$fade:d=2.6"
+af="loudnorm=I=-16:TP=-3:LRA=11,alimiter=limit=0.7:level=disabled,afade=t=out:st=$fade:d=2.6"
 # Web page: VP9/Opus WebM first (smallest), H.264/AAC MP4 as the fallback; 960x540, tuned for flat UI graphics.
 ffmpeg -y -loglevel error -framerate $fps -i "$work/frame%05d.png" -i "$work/audio.wav" \
   -vf "scale=960:540:flags=lanczos" -c:v libvpx-vp9 -b:v 0 -crf 38 -deadline good -cpu-used 1 -row-mt 1 -pix_fmt yuv420p \
