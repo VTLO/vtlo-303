@@ -1,5 +1,6 @@
 package com.vtlo.desktop
 
+import com.vtlo.live.LiveSets
 import com.vtlo.desktop.ui.Coin
 import com.vtlo.desktop.ui.GridStep
 import com.vtlo.desktop.ui.Keys
@@ -36,9 +37,12 @@ import kotlin.math.min
  * frame, and each frame is a snapshot of the window with a caption bar. The output is a PNG
  * sequence and a WAV that ffmpeg turns into the lightweight clips (see tools/make-guide-video.sh).
  *
- *     vtlo-3o3 --video <dir>
+ *     vtlo-3o3 --video <dir> [--scenario guide|live]
+ *
+ * The "live" scenario is a performance of two distinct parts, UK drum and bass and hardtekno tribe, played
+ * with the built-in live sets and their scenes (see LiveSets).
  */
-class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
+class GuideVideo(private val window: StudioWindow, private val studio: Studio, private val scenario: String = "guide") {
     private val fps = 15
     private val width = 1280
     private val height = 720
@@ -202,6 +206,107 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
         }
     }
 
+    // ─── The live set scenario ───────────────────────────────
+
+    private fun scenePad(i: Int): Widget? = window.scriptWidgets().filterIsInstance<Pad>().firstOrNull { it.text == "${i + 1}" } // the strip's scene pads come first
+
+    /** Clicks scene [i] so that it takes over on the bar line at [bar] (the scene switches at the end of the bar before it). */
+    private fun sceneAt(barTime: Double, i: Int, lead: Double = 0.5) = click(barTime - 0.3, lead) { scenePad(i) }
+
+    private fun liveScript() {
+        endAt = 89.6; totalSeconds = 92.1
+        cards.add(Card(0.0, 3.4, "VTLO 3O3", "Live set", "UK drum and bass, then hardtekno tribe: scenes, filters and effects, played live"))
+
+        // ═══ PART 1 · UK drum and bass, 174 BPM ═══
+        cards.add(Card(3.4, 7.0, "PART 1", "UK DRUM & BASS", "174 BPM · F minor · two-step drums, rolling sub, wobble"))
+        at(3.9) { LiveSets.ukDnb.load(studio.engine); showPage("DRUMS 2") }
+        at(7.1) { window.toast("UK Drum & Bass loaded: eight scenes (A1-A8) on every instrument") }
+        val t1 = 8.5
+        val bar1 = 240.0 / 174.0
+        fun b1(k: Int) = t1 + k * bar1
+        caption(7.6, "SET loads a whole track: DNB kit, 808 layer, wobble sub, 303 stabs, tempo 174")
+        click(t1) { runPad() }
+        caption(b1(0) + 0.2, "Scene 1 · INTRO: hats, shaker and ticks on the DNB kit")
+        sceneAt(b1(2), 1)
+        caption(b1(2) + 0.2, "Scene 2 · GROOVE: two-step kick and snare, a rolling sub on WOBBLE")
+        click(b1(2) + 1.5) { tab("WOBBLE") }
+        caption(b1(2) + 2.0, "WOBBLE: a round saw, wobble LFO locked to the tempo")
+        turn(b1(2) + 2.4, 1.6, -60f, "CUT OFF")
+        click(b1(5) + 0.2, 0.4) { tab("DRUMS 2") }
+        sceneAt(b1(6), 3, 0.4)
+        caption(b1(6) + 0.2, "Scene 4 · BUILD: snare roll, 808 toms, a wobble that climbs")
+        click(b1(6) + 0.8, 0.4) { tab("FX") }
+        click(b1(7) + 0.1, 0.5) { fxToggle(3) } // flanger on
+        click(b1(7) + 0.7, 0.4) { fxToggle(0) } // beat repeat on: a stutter into the drop
+        sceneAt(b1(8), 2, 0.3)
+        click(b1(8) + 0.15, 0.25) { fxToggle(0) } // stutter off on the downbeat
+        click(b1(8) + 0.7, 0.4) { fxToggle(3) } // flanger off
+        caption(b1(8) + 0.3, "Scene 3 · DROP: the wobble opens, an 808 sits under the kick")
+        click(b1(8) + 1.5) { tab("WOBBLE") }
+        caption(b1(9) + 0.3, "RATE: the wobble speeds up, 1/4 to 1/8")
+        turn(b1(9) + 1.3, 1.2, -30f, "RATE")
+        caption(b1(11) + 0.1, "CUT OFF: close the filter, then open it again")
+        turn(b1(11) + 0.6, 1.8, 50f, "CUT OFF")
+        turn(b1(13) + 0.3, 1.6, -50f, "CUT OFF")
+        click(b1(15) + 0.1, 0.4) { tab("DRUMS 2") }
+        sceneAt(b1(16), 3, 0.4)
+        caption(b1(16) + 0.2, "Build again, then the second drop")
+        sceneAt(b1(18), 2, 0.4)
+        caption(b1(18) + 0.2, "Scene 3 · DROP again")
+        click(b1(19) + 0.2) { tab("BASS 1") }
+        caption(b1(19) + 0.8, "BASS 1: a 303 stab on the off-beats, with its own delay")
+        turn(b1(20) + 0.2, 1.8, -50f, "CUT OFF")
+        sceneAt(b1(22), 0, 0.5)
+        caption(b1(22) + 0.2, "Scene 1 · back to the intro: the set is brought down")
+        click(b1(24) + 0.3) { runPad() }
+
+        // ═══ PART 2 · hardtekno tribe, 150 BPM ═══
+        val p2 = b1(24) + 2.2
+        cards.add(Card(p2 - 0.4, p2 + 3.2, "PART 2", "HARDTEKNO TRIBE", "150 BPM · A minor · distorted kick, tribal toms, acid, mental stabs"))
+        at(p2 + 0.1) { LiveSets.hardtekTribe.load(studio.engine); showPage("DRUMS 2") }
+        at(p2 + 3.4) { window.toast("Hardtekno Tribe loaded: the HTK kit, a 909, acid, sub and stabs") }
+        val t2 = p2 + 4.2
+        val bar2 = 240.0 / 150.0
+        fun b2(k: Int) = t2 + k * bar2
+        caption(p2 + 3.5, "Another set, another tempo: 150 BPM and the HTK kit")
+        click(t2) { runPad() }
+        caption(b2(0) + 0.2, "Scene 1 · INTRO: a driven kick and off-beat open hats")
+        sceneAt(b2(2), 1)
+        caption(b2(2) + 0.2, "Scene 2 · TRIBE: percussion, toms and a short acid line")
+        click(b2(2) + 0.9, 0.4) { tab("DRUMS 1") }
+        caption(b2(2) + 1.5, "DRUMS 1: 909 toms in 3 + 3 + 2 over the kick")
+        click(b2(3) + 0.9, 0.5) { tab("BASS 2") }
+        caption(b2(3) + 1.5, "BASS 2: the TB-303 acid line, A minor. Open the filter")
+        turn(b2(3) + 1.9, 0.7, -45f, "CUT OFF")
+        sceneAt(b2(5), 3, 0.35)
+        caption(b2(5) + 0.2, "Scene 4 · BUILD: the sub is cut, a snare roll speeds up")
+        turn(b2(5) + 0.7, 1.9, -45f, "CUT OFF")
+        click(b2(7) - 0.3, 0.3) { tab("FX") }
+        click(b2(7) + 0.2, 0.5) { fxToggle(0) } // beat repeat on
+        sceneAt(b2(8), 2, 0.5)
+        click(b2(8) + 0.25, 0.25) { fxToggle(0) } // off on the downbeat
+        caption(b2(8) + 0.3, "Scene 3 · DROP: kick, toms, sub, acid and stabs")
+        click(b2(8) + 1.2) { tab("WOBBLE") }
+        caption(b2(8) + 1.9, "WOBBLE as dark stabs: a fast LFO on the filter")
+        turn(b2(9) + 0.8, 1.2, 55f, "DEPTH")
+        turn(b2(10) + 0.6, 1.2, -55f, "DEPTH")
+        click(b2(11) + 0.4) { tab("DRUMS 2") }
+        caption(b2(11) + 1.0, "Swap the whole kit live: frenchcore FRC, then back to HTK")
+        click(b2(12) + 0.2) { pad("FRC") }
+        click(b2(13) + 0.6) { pad("HTK") }
+        sceneAt(b2(16), 3, 0.5)
+        caption(b2(16) + 0.2, "Build again, then the second drop")
+        sceneAt(b2(18), 2, 0.4)
+        caption(b2(18) + 0.2, "Scene 3 · DROP again")
+        click(b2(19) + 0.2) { tab("WOBBLE") }
+        turn(b2(19) + 0.9, 1.8, 60f, "CUT OFF")
+        turn(b2(20) + 1.2, 1.4, -60f, "CUT OFF")
+        sceneAt(b2(22), 0, 0.5)
+        caption(b2(22) + 0.2, "Scene 1 · outro: kick and hats, then stop on the bar")
+        click(b2(24) + 0.3) { runPad() }
+        endAt = b2(24) + 3.2; totalSeconds = endAt + 2.5
+    }
+
     /** Shows page [name] again so the screen picks up patterns written straight into the engine. */
     private fun showPage(name: String) = window.scriptSetPage(com.vtlo.desktop.ui.StudioWindow.PAGE_NAMES.indexOf(name))
 
@@ -212,7 +317,9 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
      * The video is one live take: a track built from nothing through the real interface at 150 BPM.
      * Every caption says what the pointer is about to do. Timings are in video seconds (one bar is 1.6 s).
      */
-    private fun script() {
+    private fun script() = if (scenario == "live") liveScript() else guideScript()
+
+    private fun guideScript() {
         // ── 1. DRUMS 1: tap the beat, kick and snare only ──
         at(0.2) { window.scriptSetPage(com.vtlo.desktop.ui.StudioWindow.PAGE_NAMES.indexOf("DRUMS 1")) } // the app opens on BASS 1; the take starts on DRUMS 1 under the title card
         caption(3.6, "DRUMS 1: a 909 kit. Start the transport, then tap the beat: a kick on every quarter note")
@@ -313,8 +420,12 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
         caption(118.8, "EXPORT renders any loop to WAV. Windows, Linux, Android and web")
     }
 
-    private val endAt = 122.6
-    private val totalSeconds = 125.1
+    private var endAt = 122.6
+    private var totalSeconds = 125.1
+
+    /** Full-screen cards: title, part cards (drawn over the app, fading in and out). */
+    private class Card(val from: Double, val to: Double, val title: String, val sub: String, val line: String)
+    private val cards = ArrayList<Card>()
 
     // ─── Running ─────────────────────────────────────────────
 
@@ -387,7 +498,9 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
         g.drawImage(ui, 0, 0, null)
         drawCaption(g)
         // The title card fades out into the app; the end card fades in over it.
-        if (now < 3.4) card(g, "VTLO 3O3", "Video guide", "build a track live, from the first kick", alpha = ((3.4 - now) / 0.6).coerceIn(0.0, 1.0))
+        if (scenario == "live") {
+            for (c in cards) if (now in c.from..c.to) card(g, c.title, c.sub, c.line, alpha = minOf((now - c.from) / 0.5, (c.to - now) / 0.6, 1.0).coerceIn(0.0, 1.0))
+        } else if (now < 3.4) card(g, "VTLO 3O3", "Video guide", "build a track live, from the first kick", alpha = ((3.4 - now) / 0.6).coerceIn(0.0, 1.0))
         if (now > endAt - 0.6) card(g, "Have fun!", "VTLO 3O3", "github.com/VTLO/vtlo-303", alpha = ((now - (endAt - 0.6)) / 0.6).coerceIn(0.0, 1.0), coinBack = true)
         g.dispose()
         return out

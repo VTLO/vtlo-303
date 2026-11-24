@@ -31,6 +31,7 @@ import com.vtlo.core.ui.enableEdgeToEdge
 import com.vtlo.core.ui.hideSystemBars
 import com.vtlo.core.ui.isLandscape
 import com.vtlo.drums.DrumScreen
+import com.vtlo.live.LiveSets
 import com.vtlo.sampler.SamplerScreen
 import java.io.OutputStream
 import java.util.concurrent.Executors
@@ -219,6 +220,11 @@ class MainActivity : Activity(), ScreenHost {
             partButtons.add(b)
             add(second, b, partWeight)
         }
+        val live = PadButton(this, "LIVE", dark = false).apply {
+            contentDescription = "Live sets and scenes"
+            setOnClickListener { showLiveMenu(this) }
+        }
+        add(second, live, if (oneRow) 0.7f else 0.9f)
         orientationButton = PadButton(this, "").apply {
             setOnClickListener {
                 val next = Orientation.saved(app.prefs()).next()
@@ -242,6 +248,31 @@ class MainActivity : Activity(), ScreenHost {
             addView(first, LinearLayout.LayoutParams(MATCH_PARENT, height))
             addView(second, LinearLayout.LayoutParams(MATCH_PARENT, height))
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, height * 2)
+        }
+    }
+
+    /**
+     * The live menu: load a complete set (sounds, tempo and eight scenes, replacing patterns A1 to A8 of every
+     * instrument), or move every instrument to the same scene; each switches at the end of its own bar.
+     */
+    private fun showLiveMenu(anchor: View) {
+        android.widget.PopupMenu(this, anchor).apply {
+            LiveSets.all.forEachIndexed { i, set -> menu.add(0, 100 + i, i, "Load ${set.name} · ${set.bpm} BPM") }
+            for (scene in 0 until 8) menu.add(1, scene, 10 + scene, "Scene ${scene + 1} (pattern A${scene + 1})")
+            setOnMenuItemClickListener { item ->
+                if (item.itemId >= 100) {
+                    val set = LiveSets.all[item.itemId - 100]
+                    set.load(app.engine)
+                    screens.forEach { it.refreshAll() }
+                    decks.forEach { it?.refresh() }
+                    toast("${set.name} loaded. Scenes 1-8 are in this menu")
+                } else {
+                    app.engine.selectScene(item.itemId)
+                    toast("Scene ${item.itemId + 1}")
+                }
+                true
+            }
+            show()
         }
     }
 

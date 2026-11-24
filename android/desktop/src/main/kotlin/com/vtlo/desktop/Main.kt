@@ -19,17 +19,18 @@ import kotlin.system.exitProcess
 fun main(args: Array<String>) {
     System.setProperty("awt.useSystemAAFontSettings", "on")
     val video = args.indexOf("--video").takeIf { it >= 0 }?.let { File(args.getOrElse(it + 1) { "." }) }
+    val scenario = args.indexOf("--scenario").takeIf { it >= 0 }?.let { args.getOrElse(it + 1) { "guide" } } ?: "guide"
     val shots = args.indexOf("--screenshots").takeIf { it >= 0 }?.let { File(args.getOrElse(it + 1) { "." }) }
     SwingUtilities.invokeLater {
         runCatching { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()) }
         val dataDir = if (video != null) File(video, "data") else if (shots != null) File(shots, "data") else Studio.defaultDataDir()
         val studio = if (video != null) Studio(dataDir, sampleRate = 48000).also { it.props["ui.guideSeen"] = "true" } else Studio(dataDir)
-        if (video != null) GuideMusic.setUp(studio) // before the window, so the screens show the programmed patterns
+        if (video != null && scenario != "live") GuideMusic.setUp(studio) // before the window, so the screens show the programmed patterns
         val window = StudioWindow(studio) { host -> listOf(BassScreen(host), BassScreen(host, 2), BassScreen(host, 3), DrumScreen(host), DrumScreen(host, 2), SamplerScreen(host), FxScreen(host)) }
         if (video != null) {
             // The video guide: a scripted session on a fresh studio, off the UI thread so frames can be paced in real time.
             Thread({
-                runCatching { GuideVideo(window, studio).record(video) }.onFailure { it.printStackTrace() }
+                runCatching { GuideVideo(window, studio, scenario).record(video) }.onFailure { it.printStackTrace() }
                 exitProcess(0)
             }, "vtlo-video").start()
             return@invokeLater

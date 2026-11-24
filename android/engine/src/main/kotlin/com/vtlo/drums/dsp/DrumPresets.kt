@@ -11,7 +11,7 @@ class DrumPreset(val name: String, val bpm: Int, val kit: Kit, val rows: IntArra
  * `.` rest, `x` hit, `X` accented hit.
  */
 object DrumPresets {
-    private fun rows(vararg tracks: Pair<Int, String>): IntArray {
+    fun rows(vararg tracks: Pair<Int, String>): IntArray {
         val out = IntArray(Kit.TRACKS)
         for ((t, s) in tracks) {
             require(s.length == StepPatternBank.STEPS)

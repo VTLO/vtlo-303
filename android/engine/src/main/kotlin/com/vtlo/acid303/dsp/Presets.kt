@@ -10,10 +10,10 @@ class Preset(val name: String, val bpm: Int, val steps: IntArray)
  * (glide out of this step), so each flag is moved one step earlier.
  */
 object Presets {
-    private const val REST = -1
+    const val REST = -1
 
     // Each entry: note, or REST. Flags: a = accent, s = slide-into (web semantics).
-    private fun pat(vararg cells: Any): IntArray {
+    fun pat(vararg cells: Any): IntArray {
         require(cells.size == 16)
         val notes = IntArray(16)
         val acc = BooleanArray(16)

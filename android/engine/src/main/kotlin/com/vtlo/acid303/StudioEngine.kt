@@ -132,6 +132,22 @@ class StudioEngine(
         }
     }
 
+    /**
+     * Moves every instrument to pattern slot [scene] (0..7, A1 to A8). Each one switches at the end of its own
+     * loop, so the whole studio changes together on the next bar line.
+     */
+    fun selectScene(scene: Int) {
+        val s = scene.coerceIn(0, 7)
+        bass.selectedPattern = s; bass2.selectedPattern = s; wobble.selectedPattern = s
+        drums.selectedPattern = s; drums2.selectedPattern = s; sampler.selectedPattern = s
+    }
+
+    /** The scene (0..7) every instrument is set to, or -1 if they differ. */
+    fun scene(): Int {
+        val s = bass.selectedPattern
+        return if (listOf(bass2.selectedPattern, wobble.selectedPattern, drums.selectedPattern, drums2.selectedPattern, sampler.selectedPattern).all { it == s }) s else -1
+    }
+
     /** The part that plays [engine], for callers that think in instruments rather than page order. */
     fun partOf(engine: SequencerEngine): Part = parts.first { it.engine === engine }
 

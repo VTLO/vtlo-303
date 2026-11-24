@@ -55,7 +55,8 @@ object Guide {
                 "Lancer la musique",
                 (if (touch) "RUN démarre et arrête tous les instruments ensemble. "
                 else "RUN (ou la barre ESPACE) démarre et arrête tous les instruments ensemble. ") +
-                    "Les boutons B1, B2, WB, D1, D2 et SMP ajoutent chaque instrument au mix ou l'en retirent.",
+                    "Les boutons B1, B2, WB, D1, D2 et SMP ajoutent chaque instrument au mix ou l'en retirent. " +
+                    (if (touch) "LIVE charge un morceau complet et change de scène. " else "SET charge un morceau complet\u00A0; les pastilles 1 à 4 changent de scène. "),
                 GuideArt.RUN,
             ),
             GuidePage(

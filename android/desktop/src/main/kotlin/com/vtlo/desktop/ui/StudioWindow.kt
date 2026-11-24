@@ -22,6 +22,7 @@ import javax.swing.JComponent
 import javax.swing.JFileChooser
 import javax.swing.JFrame
 import javax.swing.JMenuItem
+import com.vtlo.live.LiveSets
 import javax.swing.JPopupMenu
 import javax.swing.SwingUtilities
 import javax.swing.Timer
@@ -77,6 +78,7 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
     private val strip = ArrayList<Widget>()
     private val tabs = ArrayList<Pad>()
     private val parts = ArrayList<Pad>()
+    private val scenePads = ArrayList<Pad>()
     private var toastText = ""
     private var toastUntil = 0L
     private var lastPlaying = false
@@ -136,12 +138,39 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
             parts.add(p); strip.add(p)
         }
         strip.add(Pad("?", dark = false, hint = "Guide (en français)") { guide = GuideLayer() }.place(770f, 4f, 30f, 32f))
-        strip.add(TextBox({ "SPACE run · TAB page" }, 9.5f, Colors.panelEdge, bold = false).place(806f, 14f, 150f, 16f))
+        // Live: SET loads a complete set (sounds, tempo, eight scenes); the scene pads move every instrument to the same pattern.
+        strip.add(Pad("SET", dark = false, hint = "Load a live set: UK drum and bass or hardtekno tribe (replaces patterns A1-A8)") { setMenu() }.place(804f, 4f, 36f, 32f))
+        for (i in 0 until 4) {
+            val p = Pad("${i + 1}", led = true, dark = false, hint = "Scene ${i + 1}: every instrument switches to pattern A${i + 1} at the end of its bar (Alt+${i + 1})") { selectScene(i) }
+            p.place(844f + i * 28f, 4f, 26f, 32f)
+            scenePads.add(p); strip.add(p)
+        }
         // Upper-right emblem, flipping continuously; not interactive, so it never takes a click.
         strip.add(Coin().place(962f, 3f, 34f, 34f))
     }
 
+    private fun setMenu() {
+        val pad = strip.firstOrNull { it is Pad && it.text == "SET" } ?: return
+        host_popup(LiveSets.all.map { "${it.name}  ·  ${it.bpm} BPM  ·  scenes: ${it.scenes.take(7).joinToString(" ")}" }, pad.x, pad.y + pad.h) { i ->
+            val set = LiveSets.all[i]
+            set.load(studio.engine)
+            screens.forEach { it.refresh() }
+            decks.forEach { it?.refresh() }
+            refreshStrip()
+            toast("${set.name} loaded: ${set.description}. Scenes 1-4 on the strip, Alt+1..8 on the keyboard")
+        }
+    }
+
+    private fun host_popup(items: List<String>, x: Float, y: Float, onPick: (Int) -> Unit) = popup(items, x, y, onPick)
+
+    private fun selectScene(scene: Int) {
+        studio.engine.selectScene(scene)
+        refreshStrip()
+    }
+
     private fun refreshStrip() {
+        val scene = studio.engine.scene()
+        scenePads.forEachIndexed { i, p -> p.active = i == scene }
         tabs.forEachIndexed { i, t -> t.active = i == page }
         studio.engine.parts.forEachIndexed { i, part ->
             val name = PART_NAMES[i]
@@ -249,6 +278,7 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
             KeyEvent.VK_F5 -> { setPage(4); return true }
             KeyEvent.VK_F6 -> { setPage(5); return true }
             KeyEvent.VK_F7 -> { setPage(6); return true }
+            in KeyEvent.VK_1..KeyEvent.VK_8 -> if (e.isAltDown) { selectScene(e.keyCode - KeyEvent.VK_1); return true }
             KeyEvent.VK_ESCAPE -> {
                 studio.engine.panic(); transportOn = false
                 return true

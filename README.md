@@ -6,6 +6,11 @@
   <a href="assets/guide.mp4" title="Video guide, 1 min 46 s, with sound"><img src="assets/guide.webp" width="640" alt="Video guide: a track built live, from the first kick to the effects"></a>
 </p>
 
+<p align="center">
+  <a href="assets/live-set.mp4" title="Live set video, 1 min 32 s, with sound: part 1 UK drum and bass, part 2 hardtekno tribe"><img src="assets/live-set.webp" width="640" alt="Live set video: UK drum and bass at 174 BPM, then hardtekno tribe at 150 BPM, played with scenes"></a>
+  <br><sub>Live set (1 min 32 s): part 1 UK drum and bass, part 2 hardtekno tribe</sub>
+</p>
+
 # VTLO 303
 
 A TB-303 bass line, a 606/808/909 drum machine and a sampler: in the **browser**,
@@ -13,6 +18,47 @@ as an **Android app**, and as a **Windows / Linux desktop app**. Download the
 ready-made builds from the [latest release](../../releases/latest) or from
 [`downloads/`](downloads/).
 
+## TB-303 processing unit
+
+> [!IMPORTANT]
+> **How the original machine thinks, and where each part lives in this code.** The TB-303 is a
+> small computer driving an analog voice: a µPD650C microprocessor reads a pattern memory, steps
+> through it on a tempo clock and sets a pitch (CV) and a gate that feed a VCO, VCF and VCA. VTLO 3O3
+> keeps that signal path block for block, and the WOBBLE synth reuses the same processing chain with a
+> different voice.
+
+<p align="center">
+  <a href="assets/tb303/processing-unit.png"><img src="assets/tb303/processing-unit.png" width="900" alt="The TB-303 block diagram with its eight blocks highlighted and mapped to VTLO 3O3 code"></a>
+</p>
+
+| # | TB-303 block | In VTLO 3O3 |
+|---|---|---|
+| 1 | µPD650C microprocessor | `AcidEngine.advanceStep`: 16-step sequencer on the audio sample counter, swing, gate length |
+| 2 | CMOS memory IC3-5 | `PatternBank`: 16 patterns of 16 steps (note, gate, accent, slide) |
+| 3 | Latch, D/A, slide, CV / GATE | `SynthVoice.noteOn` / `noteOff`, RC glide on slid steps |
+| 4 | VCO | `Voice303` saw / square (PolyBLEP, 4x oversampled); `WobbleVoice` round wavetables plus a sine sub |
+| 5 | VCF | Diode-ladder model in `Voice303`; 24 dB state-variable filter with a tempo-synced LFO in `WobbleVoice` |
+| 6 | VCA + envelope generator | amp and accent envelopes, the sweep capacitor that stacks accents, declick |
+| 7 | Switch board | the step grid, keyboard and pads (`StepCell`, `NoteStep`, `KeyboardView`, `PadDeck`) |
+| 8 | Tempo oscillator and divider | `StudioEngine` beat clock, shared tempo and swing, tempo-synced effects |
+
+<details>
+<summary><b>The 1982 service notes</b> (specifications, schematics, block diagram, IC data)</summary>
+
+<br>
+
+| | |
+|---|---|
+| <a href="assets/tb303/01-service-notes-cover.png"><img src="assets/tb303/01-service-notes-cover.png" width="420" alt="TB-303 service notes cover with the specifications"></a><br>Service notes, first edition: specifications | <a href="assets/tb303/04-block-diagram.png"><img src="assets/tb303/04-block-diagram.png" width="420" alt="TB-303 block diagram"></a><br>Block diagram |
+| <a href="assets/tb303/02-main-board-analog.png"><img src="assets/tb303/02-main-board-analog.png" width="420" alt="Main board: VCO, VCF, VCA, envelope, power supply"></a><br>Main board, analog side: VCO, VCF, VCA, envelope, power | <a href="assets/tb303/03-main-board-cpu-switch.png"><img src="assets/tb303/03-main-board-cpu-switch.png" width="420" alt="Main board and switch board: the µPD650C and the pattern memory"></a><br>Main board and switch board: µPD650C, memory, LEDs and keys |
+| <a href="assets/tb303/05-ic-pinouts.png"><img src="assets/tb303/05-ic-pinouts.png" width="420" alt="IC pinouts and the µPD650C port description"></a><br>IC data: µPD650C ports, logic and analog chips | <a href="assets/tb303/06-service-notes-parts.png"><img src="assets/tb303/06-service-notes-parts.png" width="420" alt="Service notes: specifications and parts list"></a><br>Specifications and parts list |
+
+The scans are from the Roland TB-303 service notes (Feb. 19, 1982) and belong to Roland; they are
+reproduced here only to document how the original works.
+
+</details>
+
+## Android app (`android/`)
 ## The "Live act ? Always ready in my pocket"version (`android/`)
 
 <img src="assets/vtlo-coin.gif" width="96" align="right" alt="VTLO two-faced coin emblem">
@@ -43,6 +89,21 @@ for the first time you press REC.
   wobble restarts on every bar so it always lands on the beat. GLIDE is the slide time,
   RELEASE the note length. Same 16-step sequencer as the basses (accent, slide,
   octaves), wobble presets, pads on a low F, WAV export.
+- **Live sets and scenes**: two complete tracks are built in. **SET** (desktop strip) or
+  **LIVE** (Android) loads one into the whole studio, replacing patterns A1 to A8 of every
+  instrument, with its own tempo, kits and sounds:
+  - **UK Drum & Bass**, 174 BPM, F minor: two-step drums on the DNB kit (kick on 1 and the
+    "and" of 3, snare on 2 and 4 with ghost notes, shuffled hats), an 808 layer for the drop,
+    a rolling WOBBLE sub that turns into a wobble in the drop, 303 stabs with delay.
+  - **Hardtekno Tribe**, 150 BPM, A minor: a driven four-on-the-floor kick on the HTK kit
+    with a long sub boom, off-beat open hats, 909 toms in 3 + 3 + 2, the BASS 2 acid line,
+    a square sub on BASS 1 and dark WOBBLE stabs with a fast filter LFO.
+  - Eight **scenes** (A1 to A8 on every instrument): 1 intro, 2 groove or tribe, 3 drop,
+    4 build (snare roll, sub cut), 5 fill, 6 break, 7 outro. The strip's scene pads 1 to 4
+    (Alt+1..8 on the keyboard, the LIVE menu on Android) move every instrument to the same
+    scene together; each one switches at the end of its own bar, so a drop lands on the bar
+    line. Everything else stays playable on top: filters, WOBBLE rate and depth, effects
+    (beat repeat into the drop), kit changes, the pad deck.
 - **DRUMS 2 kits**: the pad row picks one of six sample-pack kits instead of the
   classic machines: FRC (fr3nchcore kick, snare, perc and hats cut from loops),
   HTK (hardtekno), DNB (drum and bass / dubstep), FCK (a bank of tuned fr3nchcore kicks),
@@ -203,7 +264,7 @@ third-party libraries.
   below). The "Android APK and Windows app" workflow also publishes
   `vtlo-3o3-windows`, a folder with `VTLO 3O3.exe` and its own Java runtime
   (built with `jpackage`). Unzip anywhere and run; nothing to install.
-- **Keys**: Space run/stop, Tab next screen (F1–F7 jump), Esc panic; bass line
+- **Keys**: Space run/stop, Tab next screen (F1–F7 jump), Alt+1..8 scene, Esc panic; bass line
   keyboard on Z S X D C V G B H N J M , ; sampler pads on Q W E R / A S D F.
   With a pad deck open, `1 2 3 4` / `Q W E R` / `A S D F` / `Z X C V` play its pads (top row
   to bottom row, several keys at once) instead of the page's own keys.
