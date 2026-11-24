@@ -2,6 +2,10 @@
   <img src="assets/banner.svg" alt="VTLO 303: a robot totem between two speaker stacks" width="100%">
 </p>
 
+<p align="center">
+  <a href="assets/guide.mp4" title="Guide vidéo, 50 s, avec le son"><img src="assets/guide.webp" width="640" alt="Guide vidéo : les écrans, programmer un motif, les pads et la boucle, les effets"></a>
+</p>
+
 # VTLO 303
 
 A TB-303 bass line, a 606/808/909 drum machine and a sampler: in the **browser**,

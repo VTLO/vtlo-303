@@ -92,7 +92,38 @@ body {
   touch-action: pan-y;
 }
 
-/* ─── Animated banner ───────────────────────────── */
+/* ─── Animated banner and video guide ───────────── */
+
+:root {
+  --banner-h: calc(min(940px, 100vw - 24px) * 0.2334);
+  /* The guide is as tall as the screen allows while the power-on button stays in view below it. */
+  --video-h: min(36vh, calc(min(720px, 100vw - 24px) * 0.5625));
+  --video-w: calc(var(--video-h) * 16 / 9);
+}
+
+.site-guide {
+  display: block;
+  width: var(--video-w);
+  height: var(--video-h);
+  margin: 0 auto 12px;
+  border-radius: 8px;
+  background: #000;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  object-fit: contain;
+  position: relative;
+  z-index: 1001; /* above the power-on overlay, like the banner */
+}
+
+@media (max-height: 640px) {
+  /* Too short for the guide and the power-on button together. */
+  :root {
+    --video-h: 0px;
+  }
+
+  .site-guide {
+    display: none;
+  }
+}
 
 .site-banner {
   display: block;
@@ -120,8 +151,9 @@ body {
   justify-content: center;
   z-index: 1000;
   transition: opacity 0.4s;
-  /* Keep the title and button clear of the banner above. */
-  padding-top: calc(min(940px, 100vw - 24px) * 0.2334 + 24px);
+  /* Keep the title and button clear of the banner and the video guide above. */
+  padding-top: calc(var(--banner-h) + var(--video-h) + 24px + 12px);
+  overflow-y: auto;
 }
 
 .power-overlay.hidden {

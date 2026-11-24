@@ -280,6 +280,41 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
         return img
     }
 
+    // ─── Scripting (the video guide recorder drives the window through these) ──
+
+    /** Every widget on the current page, in design units. */
+    fun scriptWidgets(): List<Widget> = strip + screens[page].widgets + (decks.getOrNull(page)?.widgets() ?: emptyList())
+
+    fun scriptPage(): Int = page
+
+    fun scriptSetPage(p: Int) = setPage(p)
+
+    /** 0 = press, 1 = drag, 2 = release, at a point in design units. */
+    fun scriptPointer(kind: Int, x: Float, y: Float) {
+        when (kind) {
+            0 -> canvas.pointerPress(x, y, false, 1, false)
+            1 -> canvas.pointerDrag(x, y)
+            else -> canvas.pointerRelease(x, y)
+        }
+    }
+
+    /** Renders the current page as it is, advancing the playhead and flashes, with an optional overlay in design units. */
+    fun render(width: Int, height: Int, overlay: ((Graphics2D) -> Unit)? = null): BufferedImage {
+        val playing = playing
+        if (playing != lastPlaying) {
+            lastPlaying = playing
+            screens.forEach { it.refresh() }
+        }
+        screens[page].onFrame(playing)
+        decks.getOrNull(page)?.onFrame(playing)
+        refreshStrip()
+        val img = BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)
+        val g = img.createGraphics()
+        canvas.paintAll(g, width, height, overlay)
+        g.dispose()
+        return img
+    }
+
     // ─── Canvas ──────────────────────────────────────────────
 
     private inner class Canvas : JComponent() {
@@ -296,29 +331,17 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
                 override fun mousePressed(e: MouseEvent) {
                     requestFocusInWindow()
                     val (x, y) = toDesign(e.x, e.y)
-                    guide?.let {
-                        it.overlay.tap(x, y)
-                        closeGuideIfDone()
-                        repaint()
-                        return
-                    }
-                    val w = hit(x, y) ?: return
-                    val p = Press(x, y, SwingUtilities.isRightMouseButton(e), e.clickCount, e.isShiftDown)
-                    if (w.press(p)) captured = w
-                    afterInput()
+                    pointerPress(x, y, SwingUtilities.isRightMouseButton(e), e.clickCount, e.isShiftDown)
                 }
 
                 override fun mouseDragged(e: MouseEvent) {
                     val (x, y) = toDesign(e.x, e.y)
-                    captured?.drag(x, y)
-                    afterInput()
+                    pointerDrag(x, y)
                 }
 
                 override fun mouseReleased(e: MouseEvent) {
                     val (x, y) = toDesign(e.x, e.y)
-                    captured?.release(x, y)
-                    captured = null
-                    afterInput()
+                    pointerRelease(x, y)
                 }
 
                 override fun mouseMoved(e: MouseEvent) {
@@ -335,6 +358,30 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
             addMouseListener(mouse)
             addMouseMotionListener(mouse)
             addMouseWheelListener(mouse)
+        }
+
+        /** Pointer input in design units: what the mouse listener and the video recorder both use. */
+        fun pointerPress(x: Float, y: Float, right: Boolean, clicks: Int, shift: Boolean) {
+            guide?.let {
+                it.overlay.tap(x, y)
+                closeGuideIfDone()
+                repaint()
+                return
+            }
+            val w = hit(x, y) ?: return
+            if (w.press(Press(x, y, right, clicks, shift))) captured = w
+            afterInput()
+        }
+
+        fun pointerDrag(x: Float, y: Float) {
+            captured?.drag(x, y)
+            afterInput()
+        }
+
+        fun pointerRelease(x: Float, y: Float) {
+            captured?.release(x, y)
+            captured = null
+            afterInput()
         }
 
         private fun afterInput() {
@@ -356,7 +403,7 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
 
         override fun paintComponent(g: Graphics) = paintAll(g as Graphics2D, width, height)
 
-        fun paintAll(g: Graphics2D, width: Int, height: Int) {
+        fun paintAll(g: Graphics2D, width: Int, height: Int, overlay: ((Graphics2D) -> Unit)? = null) {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
             g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE)
@@ -377,6 +424,7 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
                 g.textCentered(toastText, DW / 2, DH - 30f, font(13f), Colors.buttonText)
             }
             guide?.paint(g, -ox / scale, -oy / scale, width / scale, height / scale)
+            overlay?.invoke(g)
             g.transform = saved
         }
     }

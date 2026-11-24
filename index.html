@@ -23,6 +23,25 @@
       decoding="async"
       draggable="false"
     />
+    <!-- Video guide (French, with captions): autoplays muted and loops; the controls unmute it. -->
+    <video
+      class="site-guide"
+      autoplay
+      muted
+      loop
+      playsinline
+      controls
+      controlslist="nodownload noremoteplayback"
+      disablepictureinpicture
+      preload="auto"
+      poster="assets/guide-poster.jpg"
+      width="960"
+      height="540"
+      aria-label="Guide vidéo : prise en main de VTLO 3O3, sous-titrée en français"
+    >
+      <source src="assets/guide.webm" type='video/webm; codecs="vp9, opus"' />
+      <source src="assets/guide.mp4" type='video/mp4; codecs="avc1.4D401F, mp4a.40.2"' />
+    </video>
     <div id="tb303" class="tb303-panel">
       <!-- ═══ TOP STRIP: jacks + knobs ═══ -->
       <header class="top-strip">
@@ -480,6 +499,30 @@
       </div>
     </div>
 
+    <script>
+      // Plays the guide only while it is on screen, and not at all for visitors who prefer reduced motion.
+      (function () {
+        var v = document.querySelector(".site-guide");
+        if (!v) return;
+        if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          v.removeAttribute("autoplay");
+          v.preload = "none";
+          v.pause();
+          return;
+        }
+        if ("IntersectionObserver" in window) {
+          new IntersectionObserver(
+            function (entries) {
+              entries.forEach(function (e) {
+                if (e.isIntersecting) v.play().catch(function () {});
+                else v.pause();
+              });
+            },
+            { threshold: 0.25 }
+          ).observe(v);
+        }
+      })();
+    </script>
     <script type="module" src="js/main.js"></script>
   </body>
 </html>
