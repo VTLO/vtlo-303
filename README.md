@@ -212,10 +212,4 @@ desktop/packaging/build-portable.sh           # portable Windows zip from Linux 
 
 ## Credits and origins
 
-The web synthesizer (`index.html`, `css/`, `js/`) started from
-[AudiusProject/303](https://github.com/AudiusProject/303) by Raymond Jacobson;
-this repository keeps that project's commit history so the original authorship
-stays visible. That upstream repository does not publish a license, so check
-its terms before reusing the web synthesizer's code. The Android and desktop
-studio in `android/`, the packaging scripts, the banner and the coin emblem
-were written for this project.
+Built from scratch by FreeTekno Lysergic Inspired Tribe Methodology @√T|_o{PACTK}
