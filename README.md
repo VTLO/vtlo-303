@@ -24,7 +24,7 @@ ready-made builds from the [latest release](../../releases/latest) or from
 > **How the original machine thinks, and where each part lives in this code.** The TB-303 is a
 > small computer driving an analog voice: a µPD650C microprocessor reads a pattern memory, steps
 > through it on a tempo clock and sets a pitch (CV) and a gate that feed a VCO, VCF and VCA. VTLO 3O3
-> keeps that signal path block for block, and the WOBBLE synth reuses the same processing chain with a
+> keeps that signal path block for block, and the reworked by MLOPS processing synths of this app reuses the same processing chain with a
 > different voice.
 
 <p align="center">
