@@ -9,7 +9,7 @@ trap 'rm -rf "$work"' EXIT
 app="$work/VTLO 303 web"
 mkdir -p "$app/assets"
 cp -r "$root/index.html" "$root/favicon.svg" "$root/css" "$root/js" "$root/fonts" "$app/"
-cp "$root/assets/cover-art.png" "$root/assets/banner.svg" "$root"/assets/guide.webm "$root"/assets/guide.mp4 "$root"/assets/guide-poster.jpg "$app/assets/"
+cp "$root/assets/cover-art.png" "$root/assets/banner.svg" "$root"/assets/guide.webm "$root"/assets/guide.mp4 "$root"/assets/guide-poster.jpg "$root"/assets/live-set.webm "$root"/assets/live-set.mp4 "$root"/assets/live-set-poster.jpg "$app/assets/"
 cp "$root"/tools/web-launchers/* "$app/"
 rm -f "$out"
 (cd "$work" && zip -qr -X "$out" "VTLO 303 web")
