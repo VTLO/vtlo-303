@@ -3,12 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="assets/guide.mp4" title="Video guide, 1 min 46 s, with sound"><img src="assets/guide.webp" width="640" alt="Video guide: a track built live, from the first kick to the effects"></a>
-</p>
-
-<p align="center">
-  <a href="assets/live-set.mp4" title="Live set video, 1 min 32 s, with sound: part 1 UK drum and bass, part 2 hardtekno tribe"><img src="assets/live-set.webp" width="640" alt="Live set video: UK drum and bass at 174 BPM, then hardtekno tribe at 150 BPM, played with scenes"></a>
-  <br><sub>Live set (1 min 32 s): part 1 UK drum and bass, part 2 hardtekno tribe</sub>
+  <a href="assets/guide.mp4" title="Video guide, 1 min 46 s, with sound"><img src="assets/guide.webp" width="640" alt="Video guide: a begineer's mod track built live, from the first kick to the effects"></a>
 </p>
 
 # VTLO 303
@@ -19,7 +14,6 @@ ready-made builds from the [latest release](../../releases/latest) or from
 [`downloads/`](downloads/).
 
 ## TB-303 processing unit
-
 > [!IMPORTANT]
 > **How the original machine thinks, and where each part lives in this code.** The TB-303 is a
 > small computer driving an analog voice: a µPD650C microprocessor reads a pattern memory, steps
