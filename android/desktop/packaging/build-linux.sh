@@ -10,7 +10,7 @@ work="$out/work"
 rm -rf "$work" && mkdir -p "$work"
 
 (cd "$root" && ./gradlew --no-daemon -q -PdesktopOnly :desktop:installDist)
-common=(--name "VTLO 3O3" --app-version 1.2.0 --vendor VTLO
+common=(--name "VTLO 3O3" --app-version 1.3.0 --vendor VTLO
   --description "VTLO 3O3 studio: bass line, drum machine, sampler"
   --icon "$here/vtlo-3o3.png"
   --input "$root/desktop/build/install/vtlo-3o3/lib" --main-jar desktop.jar

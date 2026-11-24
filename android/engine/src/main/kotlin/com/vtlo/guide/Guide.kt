@@ -40,22 +40,22 @@ object Guide {
         return listOf(
             GuidePage(
                 "Bienvenue dans VTLO 3O3",
-                "Un studio de poche\u00A0: deux lignes de basse 303, deux boîtes à rythmes, un sampler et six effets, " +
+                "Un studio de poche\u00A0: deux lignes de basse 303, un synthé wobble, deux boîtes à rythmes, un sampler et six effets, " +
                     "tous calés sur le même tempo.",
                 GuideArt.WELCOME,
             ),
             GuidePage(
-                "Six écrans",
-                (if (touch) "Glissez vers la gauche ou la droite, ou touchez un onglet\u00A0: basses, batteries, SAMPLER, puis FX. "
-                else "Cliquez sur un onglet, ou passez de l'un à l'autre avec TAB et F1\u00A0à\u00A0F6. ") +
-                    "BASS\u00A02 et DRUMS\u00A02 démarrent vides, prêts à être remplis.",
+                "Sept écrans",
+                (if (touch) "Glissez vers la gauche ou la droite, ou touchez un onglet\u00A0: basses, WOBBLE, batteries, SAMPLER, puis FX. "
+                else "Cliquez sur un onglet, ou passez de l'un à l'autre avec TAB et F1\u00A0à\u00A0F7. ") +
+                    "BASS\u00A02, WOBBLE et DRUMS\u00A02 démarrent vides, prêts à être remplis. WOBBLE est un synthé aux ondes rondes dont le filtre ondule en rythme (RATE)\u00A0; DRUMS\u00A02 joue des kits d'échantillons.",
                 GuideArt.SCREENS,
             ),
             GuidePage(
                 "Lancer la musique",
                 (if (touch) "RUN démarre et arrête tous les instruments ensemble. "
                 else "RUN (ou la barre ESPACE) démarre et arrête tous les instruments ensemble. ") +
-                    "Les boutons B1, B2, D1, D2 et SMP ajoutent chaque instrument au mix ou l'en retirent.",
+                    "Les boutons B1, B2, WB, D1, D2 et SMP ajoutent chaque instrument au mix ou l'en retirent.",
                 GuideArt.RUN,
             ),
             GuidePage(
@@ -260,7 +260,7 @@ class GuideOverlay(val pages: List<GuidePage>, private val animate: Boolean = tr
                 }
             }
             GuideArt.SCREENS -> {
-                val labels = listOf("BASS 1", "DRUMS 1", "SAMPLER", "BASS 2", "DRUMS 2")
+                val labels = listOf("BASS 1", "BASS 2", "WOBBLE", "DRUMS 1", "DRUMS 2", "SAMPLER")
                 val phase = (t / 1.6f).toInt() % labels.size
                 val local = (t / 1.6f) % 1f
                 val tabW = min(78f, (w - 40f) / labels.size - 4f)

@@ -19,14 +19,14 @@ fps=15
 # for the web, and fade out under the closing card.
 dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$work/audio.wav")
 fade=$(python3 -c "print(max(0, $dur - 2.6))")
-af="loudnorm=I=-16:TP=-3:LRA=11,alimiter=limit=0.7:level=disabled,afade=t=out:st=$fade:d=2.6"
+af="loudnorm=I=-16:TP=-3:LRA=11,alimiter=limit=0.6:level=disabled,afade=t=out:st=$fade:d=2.6"
 # Web page: VP9/Opus WebM first (smallest), H.264/AAC MP4 as the fallback; 960x540, tuned for flat UI graphics.
 ffmpeg -y -loglevel error -framerate $fps -i "$work/frame%05d.png" -i "$work/audio.wav" \
   -vf "scale=960:540:flags=lanczos" -c:v libvpx-vp9 -b:v 0 -crf 38 -deadline good -cpu-used 1 -row-mt 1 -pix_fmt yuv420p \
   -af "$af" -c:a libopus -b:a 56k -shortest "$assets/guide.webm"
 ffmpeg -y -loglevel error -framerate $fps -i "$work/frame%05d.png" -i "$work/audio.wav" \
   -vf "scale=960:540:flags=lanczos" -c:v libx264 -preset veryslow -crf 31 -profile:v main -pix_fmt yuv420p -movflags +faststart \
-  -af "$af" -c:a aac -b:a 72k -shortest "$assets/guide.mp4"
+  -af "$af" -c:a aac -b:a 96k -shortest "$assets/guide.mp4"
 # The track on its own (not committed; handy for listening).
 ffmpeg -y -loglevel error -i "$work/audio.wav" -af "$af" -c:a libmp3lame -b:a 192k "$work/track.mp3"
 # Poster shown until the video plays (and for visitors who prefer reduced motion).

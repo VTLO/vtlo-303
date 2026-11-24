@@ -14,11 +14,11 @@ import com.vtlo.sampler.dsp.SamplerParam
 import kotlin.math.exp
 
 /**
- * Two bass lines, two drum machines and a sampler as one instrument: all render in the same
+ * Two bass lines, a wobble synth, two drum machines and a sampler as one instrument: all render in the same
  * audio callback, start on the same sample and share tempo and swing, so they
  * stay locked. Each part can be switched out of the mix (it keeps running in time).
  *
- * [parts] are in page order: bass line 1 and 2, drums 1 and 2, then the sampler. The master
+ * [parts] are in page order: bass line 1 and 2, the wobble synth, drums 1 and 2, then the sampler. The master
  * [fx] rack (flanger, chorus, beat repeat and more) processes the summed mix before the limiter.
  */
 class StudioEngine(
@@ -27,6 +27,8 @@ class StudioEngine(
     val sampler: SamplerEngine,
     val bass2: AcidEngine,
     val drums2: DrumEngine,
+    /** The wobble synth (an [AcidEngine] built with `wobble = true`). */
+    val wobble: AcidEngine,
 ) : SequencerEngine {
 
     /** Master effects, applied to the whole mix. */
@@ -71,6 +73,8 @@ class StudioEngine(
             { bass.get(Param.SWING) }, { bass.set(Param.SWING, it) }),
         Part(bass2, Kind.BASS, { bass2.get(Param.TEMPO) }, { bass2.set(Param.TEMPO, it) },
             { bass2.get(Param.SWING) }, { bass2.set(Param.SWING, it) }),
+        Part(wobble, Kind.BASS, { wobble.get(Param.TEMPO) }, { wobble.set(Param.TEMPO, it) },
+            { wobble.get(Param.SWING) }, { wobble.set(Param.SWING, it) }),
         Part(drums, Kind.DRUMS, { drums.get(DrumParam.TEMPO) }, { drums.set(DrumParam.TEMPO, it) },
             { drums.get(DrumParam.SWING) }, { drums.set(DrumParam.SWING, it) }),
         Part(drums2, Kind.DRUMS, { drums2.get(DrumParam.TEMPO) }, { drums2.set(DrumParam.TEMPO, it) },
@@ -138,8 +142,9 @@ class StudioEngine(
     private var swing = Float.NaN
 
     init {
+        parts[2].loop.baseNote = 29 // the wobble pads start on a low F, where a wobble lives
         val rate = bass.sampleRate
-        require(listOf(drums.sampleRate, sampler.sampleRate, bass2.sampleRate, drums2.sampleRate).all { it == rate })
+        require(listOf(drums.sampleRate, sampler.sampleRate, bass2.sampleRate, drums2.sampleRate, wobble.sampleRate).all { it == rate })
         syncTiming()
     }
 
@@ -219,8 +224,8 @@ class StudioEngine(
             var i = 0
             for (f in 0 until frames) {
                 g = target + partFade * (g - target)
-                out[i] += (b[i] * g).toFloat()
-                out[i + 1] += (b[i + 1] * g).toFloat()
+                out[i] += (b[i] * g * MIX_TRIM).toFloat()
+                out[i + 1] += (b[i + 1] * g * MIX_TRIM).toFloat()
                 i += 2
             }
             p.gain = g
@@ -229,6 +234,11 @@ class StudioEngine(
         if (click && running) addClick(out, frames, tempo)
         beatClock += frames * tempo / 60.0 / bass.sampleRate
         for (i in 0 until n) out[i] = SoftLimiter.process(out[i].toDouble()).toFloat()
+    }
+
+    private companion object {
+        /** Headroom for the sum: a kick and a bass note on the same beat no longer reach the limiter (-2.5 dB). */
+        const val MIX_TRIM = 0.75
     }
 
     // ─── Pad loop playback ───────────────────────────────────

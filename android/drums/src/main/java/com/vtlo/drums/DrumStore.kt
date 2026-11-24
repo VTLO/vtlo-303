@@ -71,8 +71,7 @@ object DrumStore {
         val data = p.getString(KEY_PATTERNS, null)
         if (data == null || !engine.bank.deserialize(data)) {
             if (!withPresets) {
-                val first = DrumPresets.all[0]
-                for (t in 0 until Kit.TRACKS) engine.setKit(t, first.kit)
+                for (t in 0 until Kit.TRACKS) engine.setKit(t, DrumPresets.forMachine(number)[0].kit)
                 return
             }
             DrumPresets.all.forEachIndexed { i, preset -> DrumPresets.load(engine.bank, i, preset) }
@@ -84,7 +83,7 @@ object DrumStore {
         DrumParam.entries.forEach { engine.set(it, p.getFloat(it.key, it.default)) }
         for (t in 0 until Kit.TRACKS) {
             TrackParam.entries.forEach { engine.set(t, it, p.getFloat("t$t.${it.key}", it.default)) }
-            engine.setKit(t, Kit.entries.firstOrNull { it.name == p.getString("t$t.kit", null) } ?: Kit.TR909)
+            engine.setKit(t, Kit.fit(number, Kit.entries.firstOrNull { it.name == p.getString("t$t.kit", null) } ?: Kit.TR909))
             engine.setMuted(t, p.getBoolean("t$t.mute", false))
         }
         engine.selectedPattern = p.getInt(KEY_SELECTED, 0).coerceIn(0, StepPatternBank.PATTERNS - 1)

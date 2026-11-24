@@ -74,15 +74,24 @@ class StudioTest {
     fun secondBassAndDrumsStartEmptyAndSurviveRestart() {
         val dir = tempDir()
         val a = Studio(dir, sampleRate = 48000)
-        assertEquals(5, a.engine.parts.size)
+        assertEquals(6, a.engine.parts.size)
         // Fresh: nothing programmed on the new pages, the original mix is unchanged.
         assertTrue((0 until 16).all { a.bass2.bank.step(0, it) and (1 shl 8) == 0 })
         assertTrue(a.drums2.bank.row(0, 0) == 0)
         assertTrue(a.engine.parts.all { it.on })
 
+        // The wobble synth starts from its own settings, with an empty pattern.
+        assertEquals(0.55f, a.wobble.get(Param.CUTOFF), 0f)
+        assertTrue((0 until 16).all { a.wobble.bank.step(0, it) and (1 shl 8) == 0 })
+        // DRUMS 2 runs the sample-pack kits.
+        assertTrue((0 until 8).all { a.drums2.kit(it) in Kit.EXTRA })
+
         a.bass2.set(Param.CUTOFF, 0.31f)
+        a.wobble.set(Param.WOB_RATE, 0.75f)
+        a.wobble.set(Param.CUTOFF, 0.8f)
+        a.wobble.bank.setStep(0, 5, com.vtlo.acid303.dsp.PatternBank.pack(29, true, false, true))
         a.bass2.bank.setStep(0, 3, com.vtlo.acid303.dsp.PatternBank.pack(40, true, true, false))
-        a.drums2.setKit(1, Kit.TR606)
+        a.drums2.setKit(1, Kit.HTK)
         a.drums2.bank.toggle(0, 2, 4)
         a.engine.partOf(a.drums2).on = false
         a.save()
@@ -90,7 +99,10 @@ class StudioTest {
         val b = Studio(dir, sampleRate = 48000)
         assertEquals(0.31f, b.bass2.get(Param.CUTOFF), 0f)
         assertEquals(40, b.bass2.bank.step(0, 3) and 0x7f)
-        assertEquals(Kit.TR606, b.drums2.kit(1))
+        assertEquals(Kit.HTK, b.drums2.kit(1))
+        assertEquals(0.75f, b.wobble.get(Param.WOB_RATE), 0f)
+        assertEquals(0.8f, b.wobble.get(Param.CUTOFF), 0f)
+        assertEquals(29, b.wobble.bank.step(0, 5) and 0x7f)
         assertTrue(b.drums2.bank.row(0, 2) != 0)
         assertTrue(!b.engine.partOf(b.drums2).on)
         // The first instruments are separate: untouched by the second ones' edits.
@@ -163,8 +175,8 @@ class StudioTest {
         val studio = Studio(tempDir(), sampleRate = 48000)
         val host = FakeHost(studio)
         var opened = false
-        val deck = com.vtlo.desktop.ui.PadDeck(host, 2, expanded = false) { opened = it } // page 3 = DRUMS 1
-        val part = studio.engine.parts[2]
+        val deck = com.vtlo.desktop.ui.PadDeck(host, 3, expanded = false) { opened = it } // page 4 = DRUMS 1 (after the wobble synth)
+        val part = studio.engine.parts[3]
         assertEquals(1, deck.widgets().size) // only the handle while hidden
         assertEquals(com.vtlo.desktop.ui.PadDeck.HANDLE_HEIGHT, deck.height, 0f)
         deck.setExpanded(true, notify = true)
@@ -219,5 +231,14 @@ class StudioTest {
         assertTrue(b.engine.click)
         assertEquals("true", b.props.getProperty("deck.1"))
         assertEquals(0, b.engine.parts[0].loop.eventCount)
+    }
+
+    @Test
+    fun anOldDrums2SaveWithAClassicKitMovesToTheSamplePackKits() {
+        val dir = tempDir()
+        File(dir, "studio.properties").writeText("drums2.patterns=" + com.vtlo.core.seq.StepPatternBank().serialize() + "\ndrums2.t0.kit=TR808\ndrums2.t1.kit=TR909\n")
+        val s = Studio(dir, sampleRate = 48000)
+        assertTrue((0 until 8).all { s.drums2.kit(it) in Kit.EXTRA })
+        assertEquals(Kit.FRC, s.drums2.kit(0))
     }
 }

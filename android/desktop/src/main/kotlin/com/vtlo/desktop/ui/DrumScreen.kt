@@ -12,6 +12,7 @@ import kotlin.math.roundToInt
 /** The drum machine page: kits, track and master knobs, the 8×16 grid. */
 class DrumScreen(host: Host, private val number: Int = 1) : Screen(host) {
     private val engine = if (number == 1) host.studio.drums else host.studio.drums2
+    private val kits = Kit.forMachine(number)
     private val bank: StepPatternBank get() = engine.bank
     private val pattern get() = engine.selectedPattern
 
@@ -40,11 +41,13 @@ class DrumScreen(host: Host, private val number: Int = 1) : Screen(host) {
         val t = TOP
         add(TextBox({ "VTLO DRUMS" + if (number > 1) " $number" else "" }, 22f, Colors.panelText), 16f, t + 4, 300f, 28f)
         add(TextBox({ "COMPUTER CONTROLLED  ·  RHYTHM" }, 10f, Colors.red), 16f, t + 32, 320f, 14f)
-        Kit.entries.forEachIndexed { i, kit ->
+        // The classic machines on DRUMS 1 (three wide pads), the six sample-pack kits on DRUMS 2 (six narrow ones).
+        val narrow = kits.size > 3
+        kits.forEachIndexed { i, kit ->
             kitPads.add(add(Pad(kit.label, led = true, dark = false, hint = "All tracks: ${kit.label} kit") {
                 for (tr in 0 until Kit.TRACKS) engine.setKit(tr, kit)
                 refreshTracks()
-            }, 500f + i * 78f, t + 6, 72f, 46f))
+            }, if (narrow) 468f + i * 44f else 500f + i * 78f, t + 6, if (narrow) 40f else 72f, 46f))
         }
         add(BpmDisplay { DrumParam.normToBpm(engine.get(DrumParam.TEMPO)).roundToInt() }, 744f, t + 8, 90f, 40f)
         run = add(Pad("RUN", led = true, hint = "Start/stop all instruments (Space)") { host.toggleTransport() }, 842f, t + 6, 150f, 46f)
@@ -60,9 +63,9 @@ class DrumScreen(host: Host, private val number: Int = 1) : Screen(host) {
         tk.forEachIndexed { i, (p, l, f) ->
             trackKnobs[p] = add(Knob(l, p.default, f, { v -> engine.set(selectedTrack, p, v) }), 16f + i * 69f, y1 + 22, 69f, 114f)
         }
-        kitKnob = add(Knob("KIT", 1f, { v -> Kit.entries[kitIndex(v)].label }, { v ->
-            engine.setKit(selectedTrack, Kit.entries[kitIndex(v)]); refreshTracks()
-        }, detents = Kit.entries.size), 16f + 4 * 69f, y1 + 22, 69f, 114f)
+        kitKnob = add(Knob("KIT", 1f, { v -> kits[kitIndex(v)].label }, { v ->
+            engine.setKit(selectedTrack, kits[kitIndex(v)]); refreshTracks()
+        }, detents = kits.size), 16f + 4 * 69f, y1 + 22, 69f, 114f)
 
         add(PanelBox { "MASTER · TEMPO" }, 376f, y1, 616f, 140f)
         val mk = listOf<Triple<DrumParam, String, (Float) -> String>>(
@@ -127,7 +130,7 @@ class DrumScreen(host: Host, private val number: Int = 1) : Screen(host) {
         utils.forEachIndexed { i, p -> add(p, 492f + i * 62f, y3 + 24, 62f, 48f) }
     }
 
-    private fun kitIndex(v: Float) = (v * (Kit.entries.size - 1)).roundToInt()
+    private fun kitIndex(v: Float) = (v * (kits.size - 1)).roundToInt()
     private fun lengthFrom(v: Float) = 1 + (v * (StepPatternBank.STEPS - 1)).roundToInt()
 
     private fun selectPattern(p: Int) {
@@ -149,8 +152,9 @@ class DrumScreen(host: Host, private val number: Int = 1) : Screen(host) {
     }
 
     private fun presetMenu(anchor: Pad) {
-        host.popup(DrumPresets.all.map { "${it.name}  ·  ${it.kit.label}  ·  ${it.bpm} BPM" }, anchor.x, anchor.y - 8f * 30) { i ->
-            val p = DrumPresets.all[i]
+        val presets = DrumPresets.forMachine(number)
+        host.popup(presets.map { "${it.name}  ·  ${it.kit.label}  ·  ${it.bpm} BPM" }, anchor.x, anchor.y - presets.size * 30f) { i ->
+            val p = presets[i]
             modify {
                 DrumPresets.load(bank, pattern, p)
                 for (tr in 0 until Kit.TRACKS) engine.setKit(tr, p.kit)
@@ -197,8 +201,8 @@ class DrumScreen(host: Host, private val number: Int = 1) : Screen(host) {
             mutes[tr].apply { active = engine.isMuted(tr); text = if (active) "MUTE" else "M" }
         }
         TrackParam.entries.forEach { p -> trackKnobs[p]?.set(engine.get(selectedTrack, p)) }
-        kitKnob.set(engine.kit(selectedTrack).ordinal / (Kit.entries.size - 1f))
-        kitPads.forEachIndexed { i, b -> b.active = (0 until Kit.TRACKS).all { engine.kit(it).ordinal == i } }
+        kitKnob.set(kits.indexOf(engine.kit(selectedTrack)).coerceAtLeast(0) / (kits.size - 1f))
+        kitPads.forEachIndexed { i, b -> b.active = (0 until Kit.TRACKS).all { engine.kit(it) == kits[i] } }
         refreshSteps()
     }
 

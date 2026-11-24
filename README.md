@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="assets/guide.mp4" title="Video guide, 1 min 46 s, with sound"><img src="assets/guide.webp" width="640" alt="Video guide: a track built live, from the first kick to the effects"></a>
+  <a href="assets/guide.mp4" title="Video guide, 2 min 5 s, with sound"><img src="assets/guide.webp" width="640" alt="Video guide: a track built live, from the first kick to the effects"></a>
 </p>
 
 # VTLO 303
@@ -18,8 +18,9 @@ ready-made builds from the [latest release](../../releases/latest) or from
 <img src="assets/vtlo-coin.gif" width="96" align="right" alt="VTLO two-faced coin emblem">
 
 **VTLO 3O3** is a standalone, fully offline studio for Android: two TB-303 bass
-lines, two 606/808/909 drum machines, a sampler and a master effects rack on six
-screens you swipe between (or pick with the tabs at the top: BASS 1, BASS 2,
+lines, a wobble bass synth, a 606/808/909 drum machine, a second drum machine with
+sample-pack kits, a sampler and a master effects rack on seven
+screens you swipe between (or pick with the tabs at the top: BASS 1, BASS 2, WOBBLE,
 DRUMS 1, DRUMS 2, SAMPLER, FX). Native Kotlin, no WebView, no
 third-party libraries; it targets **Android 17 (API 37)** and runs on
 Android 8.0 (API 26) and newer. Permissions: foreground service and
@@ -27,15 +28,37 @@ notifications (background playback) and the microphone, which is only asked
 for the first time you press REC.
 
 **Studio**
-- One transport: RUN on any screen starts all five instruments on the same
-  sample, and they share tempo and swing, so they stay locked. The B1, B2,
+- One transport: RUN on any screen starts all six instruments on the same
+  sample, and they share tempo and swing, so they stay locked. The B1, B2, WB,
   D1, D2 and SMP ON/OFF buttons take a part out of the mix without stopping it.
-- BASS 2 and DRUMS 2 are full, independent copies of the first bass line and
-  drum machine, with their own patterns, sounds, kits and saved state. They
-  start with empty patterns, so the mix is unchanged until you program them.
+- BASS 2, WOBBLE and DRUMS 2 are independent instruments with their own patterns,
+  sounds and saved state. They start with empty patterns, so the mix is unchanged
+  until you program them.
+- **WOBBLE** (dubstep, drum and bass, reese): a monophonic synth built on round
+  waveforms (OSC pad: sine, triangle, rounded square, rounded saw, two oscillators
+  slightly detuned, plus a sine SUB an octave below that bypasses the filter). A
+  resonant 24 dB low-pass is swept by a **tempo-synced LFO**: RATE picks the note
+  division (1 bar down to 1/32, with triplets), DEPTH how far the filter closes (up to
+  six octaves), the LFO pad the shape (sine, triangle, square, saw down, saw up); the
+  wobble restarts on every bar so it always lands on the beat. GLIDE is the slide time,
+  RELEASE the note length. Same 16-step sequencer as the basses (accent, slide,
+  octaves), wobble presets, pads on a low F, WAV export.
+- **DRUMS 2 kits**: the pad row picks one of six sample-pack kits instead of the
+  classic machines: FRC (frenchcore kick, snare, perc and hats cut from loops),
+  HTK (hardtek), DNB (drum and bass / dubstep), FCK (a bank of tuned frenchcore kicks),
+  BAS (eight sustained bass hits to play pitched with TUNE or the pads) and MIX.
+  Each track can take any kit with its KIT knob; the presets (Frenchcore, Hardtek,
+  Tribe, Drum & Bass, Dubstep...) set tempo, kit and groove. The samples are rebuilt
+  by `tools/build-kits.py`.
+- **Gain staging**: every 606/808/909 sample used to be normalised to 0 dBFS, so a
+  single groove already peaked at about -0.2 dBFS and the sum with a bass line hit the
+  limiter. Samples are now levelled by role (kick, snare, hats...) with an RMS ceiling,
+  the drum and bass engines have 1.6 dB / 4 dB less gain and the studio sum has 2.5 dB of
+  trim: the default mix (303 plus 909 House) peaks around -2 dBFS instead of 0 dBFS, with
+  room to raise the volume knobs.
 - **FX page**: six master effects in series on the whole mix, each with an ON
   switch and four knobs, saved with the rest of the state (see below).
-- **Pad deck** (optional, per page): the slim `▲ PADS` handle under BASS 1/2,
+- **Pad deck** (optional, per page): the slim `▲ PADS` handle under BASS 1/2, WOBBLE,
   DRUMS 1/2 and SAMPLER opens a 4 x 4 grid of rubber pads styled after a hardware
   clip controller (cream body, red inline wordmark, a "VTLO Mod. V2.0" nameplate).
   Play the instrument by hand (drums and sampler: pads 1-8 are the tracks, 9-16 the
@@ -159,7 +182,7 @@ Ready-to-install builds, committed to the repository (checksums in `SHA256SUMS`)
 |---|---|
 | Android 8.0+ (APK) | `VTLO-3O3-android.apk` |
 | Windows 10/11 x64 installer | `VTLO-3O3-Setup-windows-x64.exe` |
-| Linux, Debian/Ubuntu (`sudo apt install ./vtlo-3o3_1.2.0_amd64.deb`) | `vtlo-3o3_1.2.0_amd64.deb` |
+| Linux, Debian/Ubuntu (`sudo apt install ./vtlo-3o3_1.3.0_amd64.deb`) | `vtlo-3o3_1.3.0_amd64.deb` |
 | Linux, any distribution (unpack and run) | `VTLO-3O3-linux-x64.tar.gz` |
 | Browser version for Windows and Linux (launchers included) | `VTLO-303-web-windows-linux.zip` |
 
@@ -170,7 +193,7 @@ Rebuild them with `android/desktop/packaging/build-portable.sh` (Windows),
 
 ## Windows app (`android/desktop`)
 
-The same studio for the computer: the five instruments and the FX page on six screens (tabs
+The same studio for the computer: the six instruments and the FX page on seven screens (tabs
 at the top), running the very same `engine` code as the Android app, so they
 sound identical. Swing UI drawn to scale like the Android landscape layout
 (resize the window freely), Java Sound for output and the microphone, no
@@ -180,7 +203,7 @@ third-party libraries.
   below). The "Android APK and Windows app" workflow also publishes
   `vtlo-3o3-windows`, a folder with `VTLO 3O3.exe` and its own Java runtime
   (built with `jpackage`). Unzip anywhere and run; nothing to install.
-- **Keys**: Space run/stop, Tab next screen (F1–F6 jump), Esc panic; bass line
+- **Keys**: Space run/stop, Tab next screen (F1–F7 jump), Esc panic; bass line
   keyboard on Z S X D C V G B H N J M , ; sampler pads on Q W E R / A S D F.
   With a pad deck open, `1 2 3 4` / `Q W E R` / `A S D F` / `Z X C V` play its pads (top row
   to bottom row, several keys at once) instead of the page's own keys.

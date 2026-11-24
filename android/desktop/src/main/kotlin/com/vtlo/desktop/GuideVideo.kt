@@ -202,6 +202,9 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
         }
     }
 
+    /** Shows page [name] again so the screen picks up patterns written straight into the engine. */
+    private fun showPage(name: String) = window.scriptSetPage(com.vtlo.desktop.ui.StudioWindow.PAGE_NAMES.indexOf(name))
+
     /** A knob turn: the pointer grabs it and moves by [dy] design units (up is negative); 200 units is the whole range. */
     private fun turn(t: Double, seconds: Double, dy: Float, label: String) = drag(t, seconds, 0f, dy) { knobLabelled(label) }
 
@@ -211,7 +214,7 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
      */
     private fun script() {
         // ── 1. DRUMS 1: tap the beat, kick and snare only ──
-        at(0.2) { window.scriptSetPage(2) } // the app opens on BASS 1; the take starts on DRUMS 1 under the title card
+        at(0.2) { window.scriptSetPage(com.vtlo.desktop.ui.StudioWindow.PAGE_NAMES.indexOf("DRUMS 1")) } // the app opens on BASS 1; the take starts on DRUMS 1 under the title card
         caption(3.6, "DRUMS 1: a 909 kit. Start the transport, then tap the beat: a kick on every quarter note")
         click(4.4) { runPad() }
         for ((k, step) in intArrayOf(0, 4, 8, 12).withIndex()) click(6.0 + k * 0.8, lead = 0.5) { gridStep(0, step) }
@@ -282,19 +285,36 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
         click(91.0) { fxToggle(0) } // beat repeat on: a stutter
         click(92.6) { fxToggle(0) } // and off
 
-        // ── 7. The rest of the studio ──
-        caption(93.4, "Six screens, one tempo: BASS 1, DRUMS 2 and the SAMPLER join the mix")
-        click(94.0) { tab("BASS 1") }
-        at(94.4) { GuideMusic.sub(studio) }
-        click(95.6) { tab("DRUMS 2") }
-        at(96.0) { GuideMusic.tribal(studio) }
-        click(97.2) { tab("SAMPLER") }
-        at(97.6) { GuideMusic.shimmer(studio) }
-        caption(99.0, "EXPORT renders any loop to WAV. Windows, Linux, Android and web")
+        // ── 7. WOBBLE: round waves and a filter LFO locked to the beat ──
+        caption(93.4, "WOBBLE: a bass synth for dubstep and drum and bass. Round waves, a filter LFO locked to the tempo")
+        click(94.0) { tab("WOBBLE") }
+        at(94.4) { GuideMusic.wobble(studio); showPage("WOBBLE") }
+        caption(97.4, "RATE picks the note division: the wobble speeds up")
+        turn(98.2, 1.4, -45f, "RATE")
+        caption(100.8, "DEPTH: how far the filter closes")
+        turn(101.6, 1.4, 55f, "DEPTH")
+        turn(103.4, 1.2, -55f, "DEPTH")
+        caption(105.0, "Four oscillator shapes and five LFO shapes")
+        click(105.6) { pad("ROUND SQ") }
+        click(107.0) { pad("LFO SINE") }
+
+        // ── 8. DRUMS 2 and the rest ──
+        caption(108.6, "DRUMS 2 runs sample-pack kits: frenchcore, hardtek, drum and bass, bass hits")
+        click(109.0) { tab("DRUMS 2") }
+        at(109.4) { GuideMusic.tribal(studio); showPage("DRUMS 2") }
+        click(111.0) { pad("HTK") }
+        click(112.4) { pad("DNB") }
+        click(113.8) { pad("FRC") }
+        caption(115.0, "Six instruments, one tempo: BASS 1 and the SAMPLER join in")
+        click(115.4) { tab("BASS 1") }
+        at(115.8) { GuideMusic.sub(studio); showPage("BASS 1") }
+        click(117.0) { tab("SAMPLER") }
+        at(117.4) { GuideMusic.shimmer(studio); showPage("SAMPLER") }
+        caption(118.8, "EXPORT renders any loop to WAV. Windows, Linux, Android and web")
     }
 
-    private val endAt = 104.0
-    private val totalSeconds = 106.5
+    private val endAt = 122.6
+    private val totalSeconds = 125.1
 
     // ─── Running ─────────────────────────────────────────────
 

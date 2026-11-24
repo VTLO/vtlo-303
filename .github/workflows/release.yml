@@ -1,13 +1,13 @@
 name: Release
 
 # Publishes the files in downloads/ as a GitHub release.
-#   Actions > Release > Run workflow (tag defaults to v1.2.0)
+#   Actions > Release > Run workflow (tag defaults to v1.3.0)
 on:
   workflow_dispatch:
     inputs:
       tag:
         description: Release tag
-        default: v1.2.0
+        default: v1.3.0
         required: true
 
 permissions:
@@ -37,7 +37,7 @@ jobs:
           |---|---|
           | Android 8.0+ | `VTLO-3O3-android.apk` |
           | Windows 10/11 x64 installer | `VTLO-3O3-Setup-windows-x64.exe` |
-          | Linux, Debian/Ubuntu | `vtlo-3o3_1.2.0_amd64.deb` (`sudo apt install ./vtlo-3o3_1.2.0_amd64.deb`) |
+          | Linux, Debian/Ubuntu | `vtlo-3o3_1.3.0_amd64.deb` (`sudo apt install ./vtlo-3o3_1.3.0_amd64.deb`) |
           | Linux, any distribution | `VTLO-3O3-linux-x64.tar.gz` (unpack and run) |
           | Browser version, Windows and Linux | `VTLO-303-web-windows-linux.zip` (run the launcher inside) |
 

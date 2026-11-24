@@ -222,7 +222,7 @@ class DrumEngine(val sampleRate: Int, private val samples: SampleBank) : Sequenc
             r += revMix * reverb.outR
 
             val vol = smooth[DrumParam.VOLUME.ordinal]
-            val gain = 1.2 * vol * vol
+            val gain = 1.0 * vol * vol
             out[o++] = SoftLimiter.process(dcL.process(l * gain)).toFloat()
             out[o++] = SoftLimiter.process(dcR.process(r * gain)).toFloat()
         }

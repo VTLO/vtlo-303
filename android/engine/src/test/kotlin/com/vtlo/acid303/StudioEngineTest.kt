@@ -28,7 +28,7 @@ class StudioEngineTest {
     }
 
     private fun studio() = StudioEngine(
-        AcidEngine(FS), DrumEngine(FS, samples), SamplerEngine(FS), AcidEngine(FS), DrumEngine(FS, samples),
+        AcidEngine(FS), DrumEngine(FS, samples), SamplerEngine(FS), AcidEngine(FS), DrumEngine(FS, samples), AcidEngine(FS, wobble = true),
     ).apply {
         sampler.setSample(0, samples.get(Kit.TR808, 0))
         sampler.bank.toggle(0, 0, 0)
@@ -87,9 +87,9 @@ class StudioEngineTest {
     @Test
     fun secondBassAndDrumsAreIndependentInstrumentsInTheSameMix() {
         val s = studio()
-        assertEquals(5, s.parts.size)
-        // Page order groups the instruments: bass 1 and 2, drums 1 and 2, then the sampler.
-        assertEquals(listOf<Any>(s.bass, s.bass2, s.drums, s.drums2, s.sampler), s.parts.map { it.engine })
+        assertEquals(6, s.parts.size)
+        // Page order groups the instruments: bass 1 and 2, the wobble synth, drums 1 and 2, then the sampler.
+        assertEquals(listOf<Any>(s.bass, s.bass2, s.wobble, s.drums, s.drums2, s.sampler), s.parts.map { it.engine })
         // Fresh second instruments are silent: the original mix is untouched until they are programmed.
         s.partOf(s.bass).on = false; s.partOf(s.drums).on = false; s.partOf(s.sampler).on = false
         s.play()
@@ -264,5 +264,26 @@ class StudioEngineTest {
         assertTrue(firstSound(out) in 0..2)
         val second = firstSound(out, from = 5000)
         assertTrue("the next click is on beat 1 (frame 24000), was $second", second in 24000..24003)
+    }
+
+    @Test
+    fun theWobbleSynthPlaysInTimeWithTheOthersAndItsPadsAreBassPads() {
+        val s = studio()
+        s.partOf(s.bass).on = false; s.partOf(s.drums).on = false; s.partOf(s.sampler).on = false
+        s.wobble.bank.setStep(0, 0, com.vtlo.acid303.dsp.PatternBank.pack(29, true, false, false))
+        s.play()
+        val buf = FloatArray(1024)
+        var peak = 0f
+        repeat(100) { s.render(buf, 512); peak = maxOf(peak, buf.maxOf { abs(it) }) }
+        assertTrue("the wobble synth is audible", peak > 0.02f)
+        assertEquals(s.bass.currentStep, s.wobble.currentStep)
+        // Its pads play chromatic notes from a low F, like the bass pads.
+        assertEquals(29, s.partOf(s.wobble).loop.baseNote)
+        s.stop(); s.render(buf, 512)
+        s.padDown(s.partOf(s.wobble), 12)
+        repeat(20) { s.render(buf, 512) }
+        peak = 0f
+        repeat(20) { s.render(buf, 512); peak = maxOf(peak, buf.maxOf { abs(it) }) }
+        assertTrue("a wobble pad sounds without the sequencer", peak > 0.02f)
     }
 }

@@ -24,16 +24,16 @@ import kotlin.math.pow
  * All control parameters are normalized 0..1 and may be changed at any time from
  * the audio thread; no allocation happens while rendering.
  */
-class Voice303(private val sampleRate: Double) {
+class Voice303(private val sampleRate: Double) : SynthVoice {
 
-    var cutoff = 0.3
-    var resonance = 0.75
-    var envMod = 0.5
-    var decay = 0.4
-    var accent = 0.6
+    override var cutoff = 0.3
+    override var resonance = 0.75
+    override var envMod = 0.5
+    override var decay = 0.4
+    override var accent = 0.6
     /** 0 = saw, 1 = square, values in between blend. */
-    var waveform = 0.0
-    var tuneSemitones = 0.0
+    override var waveform = 0.0
+    override var tuneSemitones = 0.0
 
     private val fsO = sampleRate * OVERSAMPLING
     private val invFsO = 1.0 / fsO
@@ -94,7 +94,7 @@ class Voice303(private val sampleRate: Double) {
      * Starts a note. With [legato] and an open gate the pitch glides to the new
      * note without retriggering the envelopes (TB-303 slide).
      */
-    fun noteOn(note: Int, accented: Boolean, legato: Boolean) {
+    override fun noteOn(note: Int, accented: Boolean, legato: Boolean) {
         targetPitch = note.toDouble()
         accentActive = accented
         if (legato && gate) return
@@ -106,11 +106,11 @@ class Voice303(private val sampleRate: Double) {
         gate = true
     }
 
-    fun noteOff() {
+    override fun noteOff() {
         gate = false
     }
 
-    fun reset() {
+    override fun reset() {
         gate = false
         ampEnv = 0.0; mainEnv = 0.0; accentRc = 0.0; sweep = 0.0
         y1 = 0.0; y2 = 0.0; y3 = 0.0; y4 = 0.0
@@ -120,7 +120,7 @@ class Voice303(private val sampleRate: Double) {
     }
 
     /** Renders one sample at the base sample rate. */
-    fun render(): Double {
+    override fun render(): Double {
         // Pitch: RC glide in the CV (semitone) domain.
         pitch = targetPitch + slideCoeff * (pitch - targetPitch)
         val freq = 440.0 * 2.0.pow((pitch + tuneSemitones - 69.0) / 12.0)

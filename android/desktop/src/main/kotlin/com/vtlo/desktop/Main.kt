@@ -25,7 +25,7 @@ fun main(args: Array<String>) {
         val dataDir = if (video != null) File(video, "data") else if (shots != null) File(shots, "data") else Studio.defaultDataDir()
         val studio = if (video != null) Studio(dataDir, sampleRate = 48000).also { it.props["ui.guideSeen"] = "true" } else Studio(dataDir)
         if (video != null) GuideMusic.setUp(studio) // before the window, so the screens show the programmed patterns
-        val window = StudioWindow(studio) { host -> listOf(BassScreen(host), BassScreen(host, 2), DrumScreen(host), DrumScreen(host, 2), SamplerScreen(host), FxScreen(host)) }
+        val window = StudioWindow(studio) { host -> listOf(BassScreen(host), BassScreen(host, 2), BassScreen(host, 3), DrumScreen(host), DrumScreen(host, 2), SamplerScreen(host), FxScreen(host)) }
         if (video != null) {
             // The video guide: a scripted session on a fresh studio, off the UI thread so frames can be paced in real time.
             Thread({
@@ -36,10 +36,10 @@ fun main(args: Array<String>) {
         }
         if (shots != null) {
             shots.mkdirs()
-            listOf("bass", "bass2", "drums", "drums2", "sampler", "fx").forEachIndexed { i, name ->
+            listOf("bass", "bass2", "wobble", "drums", "drums2", "sampler", "fx").forEachIndexed { i, name ->
                 ImageIO.write(window.snapshot(1600, 992, i), "png", File(shots, "desktop-$name.png"))
             }
-            ImageIO.write(window.snapshot(1600, 1316, 2, deckOpen = true), "png", File(shots, "desktop-deck-drums.png"))
+            ImageIO.write(window.snapshot(1600, 1316, 3, deckOpen = true), "png", File(shots, "desktop-deck-drums.png"))
             ImageIO.write(window.snapshot(1600, 1316, 0, deckOpen = true), "png", File(shots, "desktop-deck-bass.png"))
             listOf(0, 3).forEach { g -> ImageIO.write(window.snapshot(1600, 992, 0, guidePage = g), "png", File(shots, "desktop-guide-$g.png")) }
             exitProcess(0)

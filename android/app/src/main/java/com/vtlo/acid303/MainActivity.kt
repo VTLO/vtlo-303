@@ -37,7 +37,7 @@ import java.util.concurrent.Executors
 
 /**
  * The studio window: a tab strip (pages, parts in the mix, orientation) over a
- * swipeable pager holding the bass line, drum machine and sampler screens.
+ * swipeable pager holding the bass lines, wobble synth, drum machines, sampler and effects screens.
  */
 class MainActivity : Activity(), ScreenHost {
 
@@ -82,6 +82,7 @@ class MainActivity : Activity(), ScreenHost {
         screens = listOf(
             BassScreen(this, app.bass),
             BassScreen(this, app.bass2, number = 2),
+            BassScreen(this, app.wobble, number = 3),
             DrumScreen(this, app.drums, app::drumSamplesFor),
             DrumScreen(this, app.drums2, app::drumSamplesFor, number = 2),
             SamplerScreen(this, app.sampler),
@@ -190,7 +191,7 @@ class MainActivity : Activity(), ScreenHost {
             val pad = dpi(6)
             setPadding(pad, dpi(2), pad, 0)
         }
-        // Five pages and five mix switches fit on one row only on a wide landscape screen; otherwise two rows.
+        // Seven pages and six mix switches fit on one row only on a wide landscape screen; otherwise two rows.
         val oneRow = landscape && resources.configuration.screenWidthDp >= ONE_ROW_MIN_WIDTH_DP
         val first = row()
         val second = if (oneRow) first else row()
@@ -396,11 +397,11 @@ class MainActivity : Activity(), ScreenHost {
         const val REQUEST_PERMISSION = 3
         const val REQUEST_OPEN = 4
         /** Page order groups the instruments: bass lines, drum machines, sampler, then the master effects. */
-        val PAGES = listOf("BASS 1", "BASS 2", "DRUMS 1", "DRUMS 2", "SAMPLER", "FX")
+        val PAGES = listOf("BASS 1", "BASS 2", "WOBBLE", "DRUMS 1", "DRUMS 2", "SAMPLER", "FX")
 
         /** Mix switches for the first five pages (the FX page has none: it acts on the whole mix). */
-        val PART_NAMES = listOf("B1", "B2", "D1", "D2", "SMP")
-        const val ONE_ROW_MIN_WIDTH_DP = 800
+        val PART_NAMES = listOf("B1", "B2", "WB", "D1", "D2", "SMP")
+        const val ONE_ROW_MIN_WIDTH_DP = 900
         const val KEY_ASKED_NOTIFICATIONS = "asked_notifications"
     }
 }

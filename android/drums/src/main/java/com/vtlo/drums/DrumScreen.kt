@@ -59,6 +59,8 @@ class DrumScreen(
 
     private val masterKnobs = HashMap<DrumParam, KnobView>()
     private val trackKnobs = HashMap<TrackParam, KnobView>()
+    /** The kits this machine offers: the classic ones on DRUMS 1, the sample-pack kits on DRUMS 2. */
+    private val kitList = Kit.forMachine(number)
     private lateinit var kitKnob: KnobView
     private lateinit var lengthKnob: KnobView
     private val kitButtons = ArrayList<PadButton>()
@@ -168,7 +170,7 @@ class DrumScreen(
             orientation = LinearLayout.HORIZONTAL
             setPadding(dpi(6), 0, dpi(6), dpi(8))
         }
-        for (kit in Kit.entries) {
+        for (kit in kitList) {
             val b = PadButton(context, kit.label, hasLed = true, dark = false).apply {
                 contentDescription = "All tracks ${kit.label} kit"
                 setOnClickListener {
@@ -177,7 +179,7 @@ class DrumScreen(
                 }
             }
             kitButtons.add(b)
-            val lp = if (landscape) LinearLayout.LayoutParams(dpi(72), dpi(48)) else LinearLayout.LayoutParams(0, dpi(48), 1f)
+            val lp = if (landscape) LinearLayout.LayoutParams(dpi(if (kitList.size > 3) 44 else 72), dpi(48)) else LinearLayout.LayoutParams(0, dpi(48), 1f)
             kits.addView(b, lp.apply { marginEnd = dpi(6) })
         }
 
@@ -270,14 +272,14 @@ class DrumScreen(
                 else -> "C"
             }
         })
-        kitKnob = KnobView(context, "KIT", 1f, { v -> Kit.entries[kitIndex(v)].label }, { v ->
-            engine.setKit(selectedTrack, Kit.entries[kitIndex(v)])
+        kitKnob = KnobView(context, "KIT", 1f, { v -> kitList[kitIndex(v)].label }, { v ->
+            engine.setKit(selectedTrack, kitList[kitIndex(v)])
             refreshTracks()
-        }, detents = Kit.entries.size)
+        }, detents = kitList.size)
         grid.addView(kitKnob)
     }
 
-    private fun kitIndex(v: Float) = (v * (Kit.entries.size - 1)).roundToInt()
+    private fun kitIndex(v: Float) = (v * (kitList.size - 1)).roundToInt()
 
     private fun addMasterControls(grid: ViewGroup) {
         grid.addView(masterKnob(DrumParam.ACCENT, "ACCENT", ::pct))
@@ -419,9 +421,9 @@ class DrumScreen(
 
     private fun showPresets(anchor: View) {
         PopupMenu(context, anchor).apply {
-            DrumPresets.all.forEachIndexed { i, p -> menu.add(0, i, i, "${p.name}  ·  ${p.kit.label}  ·  ${p.bpm} BPM") }
+            DrumPresets.forMachine(number).forEachIndexed { i, p -> menu.add(0, i, i, "${p.name}  ·  ${p.kit.label}  ·  ${p.bpm} BPM") }
             setOnMenuItemClickListener { item ->
-                val p = DrumPresets.all[item.itemId]
+                val p = DrumPresets.forMachine(number)[item.itemId]
                 modifyPattern {
                     DrumPresets.load(bank, pattern, p)
                     for (t in 0 until Kit.TRACKS) engine.setKit(t, p.kit)
@@ -503,8 +505,8 @@ class DrumScreen(
         val kit = engine.kit(selectedTrack)
         trackTitle.text = "TRACK · ${kit.trackNames[selectedTrack]} · ${kit.label}"
         TrackParam.entries.forEach { p -> trackKnobs[p]?.setValue(engine.get(selectedTrack, p)) }
-        kitKnob.setValue(kit.ordinal / (Kit.entries.size - 1f))
-        kitButtons.forEachIndexed { i, b -> b.active = (0 until Kit.TRACKS).all { engine.kit(it).ordinal == i } }
+        kitKnob.setValue(kitList.indexOf(kit).coerceAtLeast(0) / (kitList.size - 1f))
+        kitButtons.forEachIndexed { i, b -> b.active = (0 until Kit.TRACKS).all { engine.kit(it) == kitList[i] } }
         refreshSteps()
     }
 

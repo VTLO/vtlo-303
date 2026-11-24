@@ -62,8 +62,42 @@ object Presets {
             "53a", "43s", REST, 39, REST, "48a", "36s", 44)),
     )
 
+    /** Patterns for the wobble synth: low root notes, long held notes (slides tie steps together), octave jumps. */
+    val wobble = listOf(
+        Preset("Half-Time Wobble", 140, pat(
+            "29a", "29s", "29s", "29s", "29s", "29s", "29s", "29s",
+            "32a", "32s", "32s", "32s", "34a", "34s", REST, REST)),
+        Preset("Growl Steps", 140, pat(
+            "29a", "29s", REST, "29a", "41s", REST, "29a", "29s",
+            "29s", REST, "32a", "32s", REST, "27a", REST, 29)),
+        Preset("DnB Reese", 174, pat(
+            "33a", REST, REST, 33, REST, REST, "36a", REST,
+            "33a", REST, REST, 33, "31a", REST, 36, REST)),
+        Preset("One Long Note", 140, pat(
+            "29a", "29s", "29s", "29s", "29s", "29s", "29s", "29s",
+            "29s", "29s", "29s", "29s", "29s", "29s", "29s", "29s")),
+        Preset("Octave Jumps", 140, pat(
+            "29a", "41a", 29, 41, "29a", "41a", 29, 41,
+            "32a", "44a", 32, 44, "31a", "43a", 31, 43)),
+        Preset("Slow Drift", 100, pat(
+            "33a", "33s", "33s", "33s", "33s", "33s", "33s", "33s",
+            "36s", "36s", "36s", "36s", "31a", "31s", "31s", "31s")),
+    )
+
     fun load(bank: PatternBank, pattern: Int, preset: Preset) {
         preset.steps.forEachIndexed { i, v -> bank.setStep(pattern, i, v) }
+        bank.setLength(pattern, PatternBank.STEPS)
+    }
+
+    /** A random wobble line: low notes, mostly held, a few octave jumps. */
+    fun randomizeWobble(bank: PatternBank, pattern: Int, random: Random = Random.Default) {
+        val notes = intArrayOf(29, 29, 29, 31, 32, 34, 36, 41)
+        var note = 29
+        for (i in 0 until PatternBank.STEPS) {
+            val gate = random.nextFloat() > 0.2f
+            if (random.nextFloat() > 0.55f) note = notes[random.nextInt(notes.size)]
+            bank.setStep(pattern, i, PatternBank.pack(note, gate, accent = gate && random.nextFloat() > 0.75f, slide = gate && random.nextFloat() > 0.5f))
+        }
         bank.setLength(pattern, PatternBank.STEPS)
     }
 

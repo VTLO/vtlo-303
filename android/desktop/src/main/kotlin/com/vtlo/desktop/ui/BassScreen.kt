@@ -4,6 +4,7 @@ import com.vtlo.acid303.dsp.Param
 import com.vtlo.acid303.dsp.PatternBank
 import com.vtlo.acid303.dsp.Presets
 import com.vtlo.acid303.dsp.WavExporter
+import com.vtlo.acid303.dsp.WobbleVoice
 import java.awt.event.KeyEvent
 import javax.swing.Timer
 import kotlin.math.roundToInt
@@ -13,9 +14,14 @@ fun noteName(midi: Int) = NOTE_NAMES[midi % 12] + (midi / 12 - 1)
 fun pct(v: Float) = "${(v * 100).roundToInt()}"
 fun patternLabel(p: Int) = "${if (p < 8) 'A' else 'B'}${p % 8 + 1}"
 
-/** The TB-303 page: same controls and behaviour as the Android landscape layout. */
+/**
+ * The TB-303 pages (1 and 2) and the wobble synth page (3): the same step sequencer, keyboard and utilities,
+ * with the wobble page's voice panel swapped for round oscillator shapes and a tempo-synced filter LFO.
+ * Same controls and behaviour as the Android landscape layout.
+ */
 class BassScreen(host: Host, private val number: Int = 1) : Screen(host) {
-    private val engine = if (number == 1) host.studio.bass else host.studio.bass2
+    private val wobble = number == 3
+    private val engine = when (number) { 1 -> host.studio.bass; 2 -> host.studio.bass2; else -> host.studio.wobble }
     private val bank: PatternBank get() = engine.bank
     private val pattern get() = engine.selectedPattern
 
@@ -32,6 +38,7 @@ class BassScreen(host: Host, private val number: Int = 1) : Screen(host) {
     private lateinit var bankPad: Pad
     private lateinit var run: Pad
     private lateinit var wave: Pad
+    private lateinit var lfoPad: Pad
     private lateinit var gatePad: Pad
     private lateinit var accentPad: Pad
     private lateinit var slidePad: Pad
@@ -41,19 +48,35 @@ class BassScreen(host: Host, private val number: Int = 1) : Screen(host) {
 
     init {
         val t = TOP
-        add(TextBox({ "VTLO 3O3" }, 22f, Colors.panelText), 16f, t + 4, 300f, 28f)
-        add(TextBox({ "COMPUTER CONTROLLED  ·  BASS LINE" + if (number > 1) " $number" else "" }, 10f, Colors.red), 16f, t + 32, 320f, 14f)
+        add(TextBox({ if (wobble) "VTLO WOBBLE" else "VTLO 3O3" }, 22f, Colors.panelText), 16f, t + 4, 300f, 28f)
+        add(TextBox({ if (wobble) "ROUND WAVES  ·  WOBBLE FILTER" else "COMPUTER CONTROLLED  ·  BASS LINE" + if (number > 1) " $number" else "" }, 10f, Colors.red), 16f, t + 32, 320f, 14f)
         add(BpmDisplay { Param.normToBpm(engine.get(Param.TEMPO)).roundToInt() }, 740f, t + 8, 90f, 40f)
         run = add(Pad("RUN", led = true, hint = "Start/stop all instruments (Space)") { host.toggleTransport() }, 840f, t + 6, 150f, 46f)
 
         // Voice
         val y1 = t + 60
         add(PanelBox { "VOICE" }, 8f, y1, 480f, 150f)
-        wave = add(Pad("SAW", led = true, dark = false, hint = "Waveform: saw or square") {
-            engine.set(Param.WAVEFORM, if (engine.get(Param.WAVEFORM) < 0.5f) 1f else 0f)
-            refresh()
-        }, 16f, y1 + 46, 60f, 60f)
-        val voice = listOf<Triple<Param, String, (Float) -> String>>(
+        if (wobble) {
+            wave = add(Pad("SINE", led = true, dark = false, hint = "Oscillator: sine, triangle, rounded square, rounded saw") {
+                cycle(Param.SHAPE, WobbleVoice.SHAPES.size)
+            }, 16f, y1 + 24, 60f, 56f)
+            lfoPad = add(Pad("SINE", led = true, dark = false, hint = "Wobble LFO shape: sine, triangle, square, saw down, saw up") {
+                cycle(Param.WOB_SHAPE, WobbleVoice.LFO_SHAPES.size)
+            }, 16f, y1 + 86, 60f, 56f)
+        } else {
+            wave = add(Pad("SAW", led = true, dark = false, hint = "Waveform: saw or square") {
+                engine.set(Param.WAVEFORM, if (engine.get(Param.WAVEFORM) < 0.5f) 1f else 0f)
+                refresh()
+            }, 16f, y1 + 46, 60f, 60f)
+        }
+        val voice = if (wobble) listOf(
+            Triple(Param.CUTOFF, "CUT OFF", ::pct),
+            Triple(Param.RESONANCE, "RESO", ::pct),
+            Triple(Param.WOB_RATE, "RATE") { v -> WobbleVoice.RATE_LABELS[(v * (WobbleVoice.RATE_LABELS.size - 1)).roundToInt()] },
+            Triple(Param.WOB_DEPTH, "DEPTH", ::pct),
+            Triple(Param.SUB, "SUB", ::pct),
+            Triple(Param.GLIDE, "GLIDE") { v -> "${(4 + v * 450).roundToInt()}ms" },
+        ) else listOf<Triple<Param, String, (Float) -> String>>(
             Triple(Param.TUNE, "TUNING") { v -> val st = (v - 0.5f) * 24f; (if (st >= 0) "+" else "") + "%.1f".format(st) },
             Triple(Param.CUTOFF, "CUT OFF", ::pct),
             Triple(Param.RESONANCE, "RESO", ::pct),
@@ -61,13 +84,14 @@ class BassScreen(host: Host, private val number: Int = 1) : Screen(host) {
             Triple(Param.DECAY, "DECAY") { v -> "${(200 * Math.pow(10.0, v.toDouble())).roundToInt()}ms" },
             Triple(Param.ACCENT, "ACCENT", ::pct),
         )
-        voice.forEachIndexed { i, (p, l, f) -> add(knob(p, l, f), 82f + i * 67f, y1 + 22, 67f, 124f) }
+        voice.forEachIndexed { i, (p, l, f) -> add(knob(p, l, f, if (p == Param.WOB_RATE) WobbleVoice.RATE_LABELS.size else 0), 82f + i * 67f, y1 + 22, 67f, 124f) }
 
         add(PanelBox { "EFFECTS · MASTER · TEMPO" }, 496f, y1, 496f, 150f)
         val fx = listOf<Triple<Param, String, (Float) -> String>>(
             Triple(Param.DRIVE, "DRIVE", ::pct),
             Triple(Param.DELAY, "DELAY", ::pct),
-            Triple(Param.DELAY_FEEDBACK, "FEEDBACK", ::pct),
+            if (wobble) Triple(Param.DECAY, "RELEASE") { v -> "${(20 * Math.pow(60.0, v.toDouble())).roundToInt()}ms" }
+            else Triple(Param.DELAY_FEEDBACK, "FEEDBACK", ::pct),
             Triple(Param.REVERB, "REVERB", ::pct),
             Triple(Param.VOLUME, "VOLUME", ::pct),
             Triple(Param.TEMPO, "TEMPO") { v -> "${Param.normToBpm(v).roundToInt()}" },
@@ -120,7 +144,7 @@ class BassScreen(host: Host, private val number: Int = 1) : Screen(host) {
         lateinit var presetPad: Pad
         val utils = listOf(
             Pad("PRESET") { presetMenu(presetPad) }.also { presetPad = it },
-            Pad("RANDOM") { modify { Presets.randomize(bank, pattern) } },
+            Pad("RANDOM") { modify { if (wobble) Presets.randomizeWobble(bank, pattern) else Presets.randomize(bank, pattern) } },
             Pad("CLEAR") { modify { bank.clear(pattern) } },
             Pad("UNDO") { restoreUndo() },
             Pad("COPY") { clipboard = snapshot(); host.toast("Pattern ${patternLabel(pattern)} copied") },
@@ -131,8 +155,15 @@ class BassScreen(host: Host, private val number: Int = 1) : Screen(host) {
         utils.forEachIndexed { i, p -> add(p, 808f + (i % 3) * 60f, y3 + 26 + (i / 3) * ch, 60f, ch) }
     }
 
-    private fun knob(p: Param, label: String, format: (Float) -> String) =
-        Knob(label, p.default, format, { v -> engine.set(p, v) }).also { knobs[p] = it }
+    private fun knob(p: Param, label: String, format: (Float) -> String, detents: Int = 0) =
+        Knob(label, engine.defaultOf(p), format, { v -> engine.set(p, v) }, detents).also { knobs[p] = it }
+
+    /** Steps a stepped parameter (one of [count] values) to its next value. */
+    private fun cycle(p: Param, count: Int) {
+        val i = (engine.get(p) * (count - 1)).roundToInt()
+        engine.set(p, ((i + 1) % count) / (count - 1f))
+        refresh()
+    }
 
     private fun lengthFrom(v: Float) = 1 + (v * (PatternBank.STEPS - 1)).roundToInt()
 
@@ -200,8 +231,9 @@ class BassScreen(host: Host, private val number: Int = 1) : Screen(host) {
     }
 
     private fun presetMenu(anchor: Pad) {
-        host.popup(Presets.all.map { "${it.name}  ·  ${it.bpm} BPM" }, anchor.x, anchor.y + anchor.h) { i ->
-            val p = Presets.all[i]
+        val presets = if (wobble) Presets.wobble else Presets.all
+        host.popup(presets.map { "${it.name}  ·  ${it.bpm} BPM" }, anchor.x, anchor.y + anchor.h) { i ->
+            val p = presets[i]
             modify {
                 Presets.load(bank, pattern, p)
                 engine.set(Param.TEMPO, Param.bpmToNorm(p.bpm.toFloat()))
@@ -212,8 +244,8 @@ class BassScreen(host: Host, private val number: Int = 1) : Screen(host) {
     private fun export() {
         val params = Param.entries.associateWith { engine.get(it) }
         val steps = snapshot()
-        host.saveWav("vtlo-303${if (number > 1) "-$number" else ""}-pattern-${patternLabel(pattern)}.wav") { out ->
-            WavExporter.export(out, loops = 4, patternLength = steps[0]) { e ->
+        host.saveWav((if (wobble) "vtlo-wobble" else "vtlo-303${if (number > 1) "-$number" else ""}") + "-pattern-${patternLabel(pattern)}.wav") { out ->
+            WavExporter.export(out, loops = 4, patternLength = steps[0], wobble = wobble) { e ->
                 params.forEach { (p, v) -> e.set(p, v) }
                 e.bank.setLength(0, steps[0])
                 for (i in 0 until PatternBank.STEPS) e.bank.setStep(0, i, steps[i + 1])
@@ -226,9 +258,18 @@ class BassScreen(host: Host, private val number: Int = 1) : Screen(host) {
 
     override fun refresh() {
         Param.entries.forEach { p -> knobs[p]?.set(engine.get(p)) }
-        val sq = engine.get(Param.WAVEFORM) >= 0.5f
-        wave.text = if (sq) "SQUARE" else "SAW"
-        wave.active = sq
+        if (wobble) {
+            val shape = (engine.get(Param.SHAPE) * (WobbleVoice.SHAPES.size - 1)).roundToInt()
+            wave.text = WobbleVoice.SHAPES[shape]
+            wave.active = shape > 0
+            val lfo = (engine.get(Param.WOB_SHAPE) * (WobbleVoice.LFO_SHAPES.size - 1)).roundToInt()
+            lfoPad.text = "LFO " + WobbleVoice.LFO_SHAPES[lfo]
+            lfoPad.active = lfo > 0
+        } else {
+            val sq = engine.get(Param.WAVEFORM) >= 0.5f
+            wave.text = if (sq) "SQUARE" else "SAW"
+            wave.active = sq
+        }
         bankPad.text = if (pattern < 8) "BANK A" else "BANK B"
         patternPads.forEachIndexed { i, b -> b.active = pattern % 8 == i }
         lengthKnob.set((bank.length(pattern) - 1f) / (PatternBank.STEPS - 1))

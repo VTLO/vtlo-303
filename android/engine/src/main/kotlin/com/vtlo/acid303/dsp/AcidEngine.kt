@@ -25,9 +25,29 @@ enum class Param(val key: String, val default: Float) {
     DELAY("delay", 0.15f),
     DELAY_FEEDBACK("delayfb", 0.45f),
     REVERB("reverb", 0.1f),
-    VOLUME("volume", 0.7f);
+    VOLUME("volume", 0.7f),
+
+    // The wobble synth's own knobs (the TB-303 ignores them); appended so saved settings keep their keys.
+    SHAPE("shape", 0.6667f), // oscillator: sine, triangle, rounded square, rounded saw
+    SUB("sub", 0.5f),
+    GLIDE("glide", 0.15f),
+    WOB_RATE("wobrate", 0.5f), // LFO division of the beat, see WobbleVoice.RATE_LABELS
+    WOB_DEPTH("wobdepth", 0.7f),
+    WOB_SHAPE("wobshape", 0f); // LFO waveform, see WobbleVoice.LFO_SHAPES
 
     companion object {
+        /** The wobble synth starts from its own settings (a half-open filter, a deep wobble, a heavier drive). */
+        fun wobbleDefault(p: Param): Float = when (p) {
+            CUTOFF -> 0.55f
+            RESONANCE -> 0.45f
+            DECAY -> 0.35f
+            ACCENT -> 0.7f
+            DRIVE -> 0.35f
+            DELAY -> 0.1f
+            VOLUME -> 0.55f
+            else -> p.default
+        }
+
         const val BPM_MIN = 60f
         const val BPM_MAX = 200f
         fun bpmToNorm(bpm: Float) = (bpm - BPM_MIN) / (BPM_MAX - BPM_MIN)
@@ -43,11 +63,14 @@ enum class Param(val key: String, val default: Float) {
  * public method is safe to call from the UI thread; they communicate through
  * atomics and a single-producer/single-consumer command queue.
  */
-class AcidEngine(val sampleRate: Int) : SequencerEngine {
+class AcidEngine(val sampleRate: Int, val wobble: Boolean = false) : SequencerEngine {
     val bank = PatternBank()
 
+    /** The value a knob starts at (and returns to on a double click). */
+    fun defaultOf(p: Param): Float = if (wobble) Param.wobbleDefault(p) else p.default
+
     private val params = AtomicIntegerArray(Param.entries.size).also { a ->
-        Param.entries.forEach { a.set(it.ordinal, it.default.toRawBits()) }
+        Param.entries.forEach { a.set(it.ordinal, defaultOf(it).toRawBits()) }
     }
 
     fun get(p: Param): Float = Float.fromBits(params.get(p.ordinal))
@@ -64,11 +87,12 @@ class AcidEngine(val sampleRate: Int) : SequencerEngine {
         private set
 
     private val fs = sampleRate.toDouble()
-    private val voice = Voice303(fs)
+    private val voice: SynthVoice = if (wobble) WobbleVoice(fs) else Voice303(fs)
+    private val wobbleVoice = voice as? WobbleVoice
 
     // A second voice for notes played from the pads, so they never fight with the step sequencer
     // (which silences its voice on every rest step). Rendered only while it can be heard.
-    private val padVoice = Voice303(fs)
+    private val padVoice: SynthVoice = if (wobble) WobbleVoice(fs) else Voice303(fs)
     private var padLive = false
     private var padReleaseLeft = 0
     private val drive = Overdrive(fs)
@@ -93,7 +117,7 @@ class AcidEngine(val sampleRate: Int) : SequencerEngine {
     private var prevSlide = false
 
     init {
-        Param.entries.forEach { smooth[it.ordinal] = it.default.toDouble() }
+        Param.entries.forEach { smooth[it.ordinal] = defaultOf(it).toDouble() }
     }
 
     override fun play() = post(CMD_PLAY, 0)
@@ -129,6 +153,7 @@ class AcidEngine(val sampleRate: Int) : SequencerEngine {
                     prevGate = false
                     prevSlide = false
                     playingPattern = selectedPattern
+                    wobbleVoice?.resetLfo()
                     isPlaying = true
                 }
                 CMD_STOP -> {
@@ -149,6 +174,7 @@ class AcidEngine(val sampleRate: Int) : SequencerEngine {
                 CMD_NOTE_ON -> if (!isPlaying) voice.noteOn(arg and 0x7f, arg and 0x100 != 0, false)
                 CMD_NOTE_OFF -> if (!isPlaying) voice.noteOff()
                 CMD_PAD_ON -> {
+                    (padVoice as? WobbleVoice)?.lfoPhase = wobbleVoice?.lfoPhase ?: 0.0 // the wobble stays on the beat
                     padVoice.noteOn(arg and 0x7f, arg and 0x100 != 0, false)
                     padLive = true
                     padReleaseLeft = 0
@@ -174,6 +200,8 @@ class AcidEngine(val sampleRate: Int) : SequencerEngine {
         val delaySeconds = 3.0 * 60.0 / bpm / 4.0 // dotted eighth
         val waveform = get(Param.WAVEFORM).toDouble()
         voice.waveform = if (waveform >= 0.5) 1.0 else 0.0
+        val lfoInc = WobbleVoice.RATE_CYCLES[Math.round(get(Param.WOB_RATE) * (WobbleVoice.RATE_CYCLES.size - 1))] * bpm / 60.0 / fs
+        val lfoShape = Math.round(get(Param.WOB_SHAPE) * (WobbleVoice.LFO_SHAPES.size - 1))
 
         var o = 0
         for (n in 0 until frames) {
@@ -188,6 +216,20 @@ class AcidEngine(val sampleRate: Int) : SequencerEngine {
             voice.decay = smooth[Param.DECAY.ordinal]
             voice.accent = smooth[Param.ACCENT.ordinal]
             voice.tuneSemitones = (smooth[Param.TUNE.ordinal] - 0.5) * 24.0
+            if (wobble) {
+                val w = voice as WobbleVoice
+                w.shape = smooth[Param.SHAPE.ordinal]
+                w.sub = smooth[Param.SUB.ordinal]
+                w.glide = smooth[Param.GLIDE.ordinal]
+                w.lfoDepth = smooth[Param.WOB_DEPTH.ordinal]
+                w.lfoShape = lfoShape
+                w.lfoInc = lfoInc
+                if (padLive) {
+                    val pw = padVoice as WobbleVoice
+                    pw.shape = w.shape; pw.sub = w.sub; pw.glide = w.glide
+                    pw.lfoDepth = w.lfoDepth; pw.lfoShape = lfoShape; pw.lfoInc = lfoInc
+                }
+            }
             if (padLive) {
                 padVoice.cutoff = voice.cutoff
                 padVoice.resonance = voice.resonance
@@ -232,7 +274,7 @@ class AcidEngine(val sampleRate: Int) : SequencerEngine {
             r += revMix * reverb.outR
 
             val vol = smooth[Param.VOLUME.ordinal]
-            val gain = 1.6 * vol * vol
+            val gain = 1.0 * vol * vol // headroom: the 303 alone used to peak at -1.5 dBFS on defaults
             l = SoftLimiter.process(dcL.process(l * gain))
             r = SoftLimiter.process(dcR.process(r * gain))
             out[o++] = l.toFloat()
@@ -244,7 +286,10 @@ class AcidEngine(val sampleRate: Int) : SequencerEngine {
     private fun advanceStep(stepSamples: Double) {
         stepIndex++
         if (stepIndex >= bank.length(playingPattern)) stepIndex = 0
-        if (stepIndex == 0) playingPattern = selectedPattern
+        if (stepIndex == 0) {
+            playingPattern = selectedPattern
+            wobbleVoice?.resetLfo() // the wobble starts open on the bar
+        }
         val s = bank.step(playingPattern, stepIndex)
         val gate = PatternBank.gate(s)
         val slide = PatternBank.slide(s)

@@ -43,20 +43,22 @@ class StudioTest {
     }
 
     @Test(timeout = 120000)
-    fun allInstrumentsOnFivePages() {
+    fun allInstrumentsOnSevenPages() {
         val ctl = Robolectric.buildActivity(MainActivity::class.java).create()
         val a = ctl.get()
         val app = a.application as StudioApp
-        // The second bass line and drum machine are separate instruments that start empty.
-        assertEquals(5, app.engine.parts.size)
+        // The second bass line, the wobble synth and the second drum machine are separate instruments that start empty.
+        assertEquals(6, app.engine.parts.size)
         assertEquals(0, app.drums2.bank.row(0, 0))
+        assertTrue((0 until 16).none { app.wobble.bank.step(0, it) and (1 shl 8) != 0 })
+        assertTrue(app.drums2.kit(0) in Kit.EXTRA) // DRUMS 2 runs the sample-pack kits
         assertTrue((0 until 16).none { app.bass2.bank.step(0, it) and (1 shl 8) != 0 })
         assertEquals(Kit.TR909, app.drums.kit(0))
         assertTrue(app.drums.bank.row(0, 0) != 0) // House preset kick row
         assertTrue(app.bass.bank.step(0, 0) != 0) // Acid Classic first step
 
         val pager = pager(a)
-        assertEquals(6, pager.childCount)
+        assertEquals(7, pager.childCount)
         assertEquals(0, pager.currentPage)
         pager.setPage(2, animate = false)
         assertEquals(2, pager.currentPage)
@@ -75,7 +77,7 @@ class StudioTest {
     @Config(qualifiers = "w411dp-h891dp-port")
     fun portraitBuildsAllPages() {
         val ctl = Robolectric.buildActivity(MainActivity::class.java).create()
-        assertEquals(6, pager(ctl.get()).childCount)
+        assertEquals(7, pager(ctl.get()).childCount)
         checkCoin(ctl.get())
         ctl.destroy()
     }
@@ -109,14 +111,14 @@ class StudioTest {
 
     @Test(timeout = 120000)
     fun pagesAreGroupedLogicallyAndEndWithTheFxSection() {
-        assertEquals(listOf("BASS 1", "BASS 2", "DRUMS 1", "DRUMS 2", "SAMPLER", "FX"), MainActivity.PAGES)
-        assertEquals(listOf("B1", "B2", "D1", "D2", "SMP"), MainActivity.PART_NAMES)
+        assertEquals(listOf("BASS 1", "BASS 2", "WOBBLE", "DRUMS 1", "DRUMS 2", "SAMPLER", "FX"), MainActivity.PAGES)
+        assertEquals(listOf("B1", "B2", "WB", "D1", "D2", "SMP"), MainActivity.PART_NAMES)
         val ctl = Robolectric.buildActivity(MainActivity::class.java).create()
         val app = ctl.get().application as StudioApp
         // The mix switches follow the same order as the pages.
-        assertEquals(listOf<Any>(app.bass, app.bass2, app.drums, app.drums2, app.sampler), app.engine.parts.map { it.engine })
+        assertEquals(listOf<Any>(app.bass, app.bass2, app.wobble, app.drums, app.drums2, app.sampler), app.engine.parts.map { it.engine })
         // The FX page holds six effects with four knobs each.
-        val fxPage = pager(ctl.get()).getChildAt(5)
+        val fxPage = pager(ctl.get()).getChildAt(6)
         assertEquals(24, knobs(fxPage).size)
         ctl.destroy()
     }
@@ -170,32 +172,36 @@ class StudioTest {
         val a = ctl.get()
         val app = a.application as StudioApp
         val pager = pager(a)
-        for (page in 0..4) assertEquals("page $page", 16, padViews(pager.getChildAt(page)).size)
-        assertEquals(0, padViews(pager.getChildAt(5)).size)
+        for (page in 0..5) assertEquals("page $page", 16, padViews(pager.getChildAt(page)).size)
+        assertEquals(0, padViews(pager.getChildAt(6)).size)
 
         // Hidden at first; the handle shows it, remembers that per page, and fills in labels that fit the instrument.
         val bassHandle = handleOf(pager.getChildAt(0))
         assertTrue(padViews(pager.getChildAt(0)).all { it.label.isEmpty() })
         bassHandle.performClick()
         assertTrue(app.prefs().getBoolean("deck_0", false))
-        assertTrue(!app.prefs().getBoolean("deck_2", false))
+        assertTrue(!app.prefs().getBoolean("deck_3", false))
         val bassPads = padViews(pager.getChildAt(0)).associateBy { it.index }
         assertEquals("C2", bassPads[0]!!.label)
         assertEquals("D#3", bassPads[15]!!.label)
 
+        // The wobble pads start on a low F.
         handleOf(pager.getChildAt(2)).performClick()
-        val drumPads = padViews(pager.getChildAt(2)).associateBy { it.index }
+        assertEquals("F1", padViews(pager.getChildAt(2)).associateBy { it.index }[0]!!.label)
+
+        handleOf(pager.getChildAt(3)).performClick()
+        val drumPads = padViews(pager.getChildAt(3)).associateBy { it.index }
         assertEquals("BD", drumPads[0]!!.label)
         assertEquals("", drumPads[0]!!.tag)
         assertEquals("BD", drumPads[8]!!.label)
         assertEquals("ACC", drumPads[8]!!.tag) // pads 9 to 16 are the accented hits
 
-        handleOf(pager.getChildAt(4)).performClick()
-        val samplerPads = padViews(pager.getChildAt(4)).associateBy { it.index }
+        handleOf(pager.getChildAt(5)).performClick()
+        val samplerPads = padViews(pager.getChildAt(5)).associateBy { it.index }
         assertEquals("808 BD", samplerPads[0]!!.label)
 
         // Pad 1 is at the bottom left: the grid is laid out top row first.
-        val order = padViews(pager.getChildAt(2)).map { it.index }
+        val order = padViews(pager.getChildAt(3)).map { it.index }
         assertEquals(listOf(12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3), order)
 
         handleOf(pager.getChildAt(0)).performClick() // hide again
@@ -209,9 +215,9 @@ class StudioTest {
         val a = ctl.get()
         val app = a.application as StudioApp
         val pager = pager(a)
-        handleOf(pager.getChildAt(2)).performClick()
-        val loop = app.engine.parts[2].loop
-        val pad = padViews(pager.getChildAt(2)).first { it.index == 6 }
+        handleOf(pager.getChildAt(3)).performClick()
+        val loop = app.engine.parts[3].loop
+        val pad = padViews(pager.getChildAt(3)).first { it.index == 6 }
 
         // Not recording: a tap only sounds, it does not record or start anything.
         touch(pad, android.view.MotionEvent.ACTION_DOWN); touch(pad, android.view.MotionEvent.ACTION_UP)

@@ -1,6 +1,6 @@
 VTLO 3O3 for Linux (x86-64)
 
-Debian, Ubuntu, Mint…:  sudo apt install ./vtlo-3o3_1.2.0_amd64.deb
+Debian, Ubuntu, Mint…:  sudo apt install ./vtlo-3o3_1.3.0_amd64.deb
   then start "VTLO 3O3" from the applications menu (Sound & Video).
 
 Any distribution: unpack VTLO-3O3-linux-x64.tar.gz and run

@@ -39,6 +39,7 @@ class Studio(private val dataDir: File, val sampleRate: Int = pickOutputRate()) 
     val sampler = SamplerEngine(sampleRate)
     val bass2 = AcidEngine(sampleRate)
     val drums2 = DrumEngine(sampleRate, drumSamples)
+    val wobble = AcidEngine(sampleRate, wobble = true)
     val engine: StudioEngine
     val output: AudioOutput
 
@@ -48,15 +49,16 @@ class Studio(private val dataDir: File, val sampleRate: Int = pickOutputRate()) 
             Presets.all.forEachIndexed { i, p -> Presets.load(bass.bank, i, p) }
             bass.set(Param.TEMPO, Param.bpmToNorm(Presets.all[0].bpm.toFloat()))
         }
-        if (!restoreDrums(drums, "drums")) {
+        if (!restoreDrums(drums, "drums", 1)) {
             DrumPresets.all.forEachIndexed { i, p -> DrumPresets.load(drums.bank, i, p) }
             for (t in 0 until Kit.TRACKS) drums.setKit(t, DrumPresets.all[0].kit)
         }
         if (!restoreSampler()) seedSampler()
         // The second bass line and drum machine start with empty patterns: the mix is as before until they are programmed.
         restoreBass(bass2, "bass2")
-        if (!restoreDrums(drums2, "drums2")) for (t in 0 until Kit.TRACKS) drums2.setKit(t, DrumPresets.all[0].kit)
-        engine = StudioEngine(bass, drums, sampler, bass2, drums2)
+        restoreBass(wobble, "wobble")
+        if (!restoreDrums(drums2, "drums2", 2)) for (t in 0 until Kit.TRACKS) drums2.setKit(t, DrumPresets.hard[0].kit)
+        engine = StudioEngine(bass, drums, sampler, bass2, drums2, wobble)
         // Part switches are keyed by name; saves from before the pages were regrouped used the old index order.
         engine.parts.forEachIndexed { i, part ->
             val name = PART_NAMES[i]
@@ -120,6 +122,7 @@ class Studio(private val dataDir: File, val sampleRate: Int = pickOutputRate()) 
         val p = props
         saveBass(bass, "bass")
         saveBass(bass2, "bass2")
+        saveBass(wobble, "wobble")
         saveDrums(drums, "drums")
         saveDrums(drums2, "drums2")
 
@@ -181,18 +184,18 @@ class Studio(private val dataDir: File, val sampleRate: Int = pickOutputRate()) 
     private fun restoreBass(e: AcidEngine, k: String): Boolean {
         val data = props.getProperty("$k.patterns") ?: return false
         if (!e.bank.deserialize(data)) return false
-        Param.entries.forEach { e.set(it, f("$k.${it.key}", it.default)) }
+        Param.entries.forEach { e.set(it, f("$k.${it.key}", e.defaultOf(it))) }
         e.selectedPattern = (props.getProperty("$k.selected")?.toIntOrNull() ?: 0).coerceIn(0, PatternBank.PATTERNS - 1)
         return true
     }
 
-    private fun restoreDrums(e: DrumEngine, k: String): Boolean {
+    private fun restoreDrums(e: DrumEngine, k: String, number: Int): Boolean {
         val data = props.getProperty("$k.patterns") ?: return false
         if (!e.bank.deserialize(data)) return false
         DrumParam.entries.forEach { e.set(it, f("$k.${it.key}", it.default)) }
         for (t in 0 until Kit.TRACKS) {
             TrackParam.entries.forEach { e.set(t, it, f("$k.t$t.${it.key}", it.default)) }
-            e.setKit(t, Kit.entries.firstOrNull { it.name == props.getProperty("$k.t$t.kit") } ?: Kit.TR909)
+            e.setKit(t, Kit.fit(number, Kit.entries.firstOrNull { it.name == props.getProperty("$k.t$t.kit") } ?: Kit.TR909))
             e.setMuted(t, props.getProperty("$k.t$t.mute").toBoolean())
         }
         e.selectedPattern = (props.getProperty("$k.selected")?.toIntOrNull() ?: 0).coerceIn(0, StepPatternBank.PATTERNS - 1)
@@ -218,14 +221,14 @@ class Studio(private val dataDir: File, val sampleRate: Int = pickOutputRate()) 
     }
 
     companion object {
-        /** Names of the parts, in part order (bass 1, bass 2, drums 1, drums 2, sampler). */
-        private val PART_NAMES = listOf("bass", "bass2", "drums", "drums2", "sampler")
+        /** Names of the parts, in part order (bass 1, bass 2, wobble, drums 1, drums 2, sampler). */
+        private val PART_NAMES = listOf("bass", "bass2", "wobble", "drums", "drums2", "sampler")
 
         /** The order the part switches were saved in before the pages were regrouped. */
         private val LEGACY_ORDER = listOf("bass", "drums", "sampler", "bass2", "drums2")
 
         /** Bump when the bundled kits change so the converted cache is rebuilt. */
-        private const val CACHE_KEY = "v1"
+        private const val CACHE_KEY = "v2"
 
         /** %APPDATA%\VTLO 3O3 on Windows, ~/.vtlo-3o3 elsewhere. */
         fun defaultDataDir(): File {

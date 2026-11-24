@@ -123,7 +123,7 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
     private fun buildStrip() {
         PAGE_NAMES.forEachIndexed { i, label ->
             val t = Pad(label, dark = false, hint = "Show $label (F${i + 1})") { setPage(i) }
-            t.place(8f + i * 76f, 4f, 72f, 32f)
+            t.place(8f + i * 66f, 4f, 62f, 32f)
             tabs.add(t); strip.add(t)
         }
         PART_NAMES.forEachIndexed { i, name ->
@@ -132,11 +132,11 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
                 part.on = !part.on
                 refreshStrip()
             }
-            p.place(470f + i * 56f, 4f, 52f, 32f)
+            p.place(474f + i * 49f, 4f, 46f, 32f)
             parts.add(p); strip.add(p)
         }
-        strip.add(Pad("?", dark = false, hint = "Guide (en français)") { guide = GuideLayer() }.place(754f, 4f, 30f, 32f))
-        strip.add(TextBox({ "SPACE run · TAB page" }, 9.5f, Colors.panelEdge, bold = false).place(796f, 14f, 150f, 16f))
+        strip.add(Pad("?", dark = false, hint = "Guide (en français)") { guide = GuideLayer() }.place(770f, 4f, 30f, 32f))
+        strip.add(TextBox({ "SPACE run · TAB page" }, 9.5f, Colors.panelEdge, bold = false).place(806f, 14f, 150f, 16f))
         // Upper-right emblem, flipping continuously; not interactive, so it never takes a click.
         strip.add(Coin().place(962f, 3f, 34f, 34f))
     }
@@ -248,6 +248,7 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
             KeyEvent.VK_F4 -> { setPage(3); return true }
             KeyEvent.VK_F5 -> { setPage(4); return true }
             KeyEvent.VK_F6 -> { setPage(5); return true }
+            KeyEvent.VK_F7 -> { setPage(6); return true }
             KeyEvent.VK_ESCAPE -> {
                 studio.engine.panic(); transportOn = false
                 return true
@@ -431,10 +432,10 @@ class StudioWindow(override val studio: Studio, screenFactory: (Host) -> List<Sc
 
     companion object {
         /** Page order groups the instruments: bass lines, drum machines, sampler, then the master effects. */
-        val PAGE_NAMES = listOf("BASS 1", "BASS 2", "DRUMS 1", "DRUMS 2", "SAMPLER", "FX")
+        val PAGE_NAMES = listOf("BASS 1", "BASS 2", "WOBBLE", "DRUMS 1", "DRUMS 2", "SAMPLER", "FX")
 
         /** Mix switches for the first five pages; the FX page acts on the whole mix. */
-        val PART_NAMES = listOf("B1", "B2", "D1", "D2", "SMP")
+        val PART_NAMES = listOf("B1", "B2", "WB", "D1", "D2", "SMP")
         const val DW = 1000f
         const val DH = 620f
 

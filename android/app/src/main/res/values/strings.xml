@@ -2,6 +2,8 @@
 <resources>
     <string name="app_name">VTLO 3O3</string>
     <string name="subtitle">COMPUTER CONTROLLED  ·  BASS LINE</string>
+    <string name="title_wobble">VTLO WOBBLE</string>
+    <string name="subtitle_wobble">ROUND WAVES  ·  WOBBLE FILTER</string>
     <string name="subtitle_n">COMPUTER CONTROLLED  ·  BASS LINE %1$d</string>
     <string name="deck_open">▲  PADS</string>
     <string name="deck_close">▼  PADS</string>

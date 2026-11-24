@@ -26,6 +26,7 @@ class StudioApp : InstrumentApp() {
     val sampler: SamplerEngine get() = engine.sampler
     val bass2: AcidEngine get() = engine.bass2
     val drums2: DrumEngine get() = engine.drums2
+    val wobble: AcidEngine get() = engine.wobble
     val fx get() = engine.fx
     private lateinit var drumSamples: SampleBank
 
@@ -59,8 +60,10 @@ class StudioApp : InstrumentApp() {
         restoreBass(bass2, PREFIX_2)
         val drums2 = DrumEngine(sampleRate, drumSamples)
         DrumStore.restore(this, drums2, number = 2)
+        val wobble = AcidEngine(sampleRate, wobble = true)
+        restoreBass(wobble, PREFIX_WOBBLE)
         // The first bass line's tempo and swing win at start-up; StudioEngine keeps them in step after.
-        engine = StudioEngine(bass, drums, sampler, bass2, drums2)
+        engine = StudioEngine(bass, drums, sampler, bass2, drums2, wobble)
         engine.parts.forEachIndexed { i, part -> part.on = prefs().getBoolean(PART_KEYS[i], true) }
         restoreFx()
         engine.parts.forEachIndexed { i, part -> prefs().getString("pads_${PART_KEYS[i].removeSuffix("_on")}", null)?.let(part.loop::load) }
@@ -91,6 +94,7 @@ class StudioApp : InstrumentApp() {
         prefs().edit().apply {
             saveBass(this, bass, "")
             saveBass(this, bass2, PREFIX_2)
+            saveBass(this, wobble, PREFIX_WOBBLE)
             engine.parts.forEachIndexed { i, part -> putBoolean(PART_KEYS[i], part.on) }
             engine.parts.forEachIndexed { i, part -> putString("pads_${PART_KEYS[i].removeSuffix("_on")}", part.loop.serialize()) }
             putBoolean("click", engine.click)
@@ -127,7 +131,7 @@ class StudioApp : InstrumentApp() {
         val p = prefs()
         val data = p.getString(prefix + KEY_PATTERNS, null) ?: return false
         if (!bass.bank.deserialize(data)) return false
-        Param.entries.forEach { bass.set(it, p.getFloat(prefix + it.key, it.default)) }
+        Param.entries.forEach { bass.set(it, p.getFloat(prefix + it.key, bass.defaultOf(it))) }
         bass.selectedPattern = p.getInt(prefix + KEY_SELECTED, 0).coerceIn(0, PatternBank.PATTERNS - 1)
         return true
     }
@@ -137,7 +141,8 @@ class StudioApp : InstrumentApp() {
         const val KEY_PATTERNS = "patterns"
         const val KEY_SELECTED = "selected"
         const val PREFIX_2 = "b2_"
-        // In part order (bass 1, bass 2, drums 1, drums 2, sampler); keyed by name so older saves still apply.
-        val PART_KEYS = listOf("bass_on", "bass2_on", "drums_on", "drums2_on", "sampler_on")
+        const val PREFIX_WOBBLE = "wob_"
+        // In part order (bass 1, bass 2, wobble, drums 1, drums 2, sampler); keyed by name so older saves still apply.
+        val PART_KEYS = listOf("bass_on", "bass2_on", "wobble_on", "drums_on", "drums2_on", "sampler_on")
     }
 }

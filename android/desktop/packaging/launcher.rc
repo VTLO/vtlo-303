@@ -9,9 +9,9 @@ BEGIN
     BEGIN
       VALUE "CompanyName", "VTLO"
       VALUE "FileDescription", "VTLO 3O3 studio"
-      VALUE "FileVersion", "1.2.0"
+      VALUE "FileVersion", "1.3.0"
       VALUE "ProductName", "VTLO 3O3"
-      VALUE "ProductVersion", "1.2.0"
+      VALUE "ProductVersion", "1.3.0"
     END
   END
   BLOCK "VarFileInfo"

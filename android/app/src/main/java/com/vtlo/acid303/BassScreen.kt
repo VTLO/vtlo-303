@@ -21,6 +21,7 @@ import com.vtlo.acid303.dsp.Param
 import com.vtlo.acid303.dsp.PatternBank
 import com.vtlo.acid303.dsp.Presets
 import com.vtlo.acid303.dsp.WavExporter
+import com.vtlo.acid303.dsp.WobbleVoice
 import com.vtlo.core.ui.FitScaleLayout
 import com.vtlo.core.ui.FlowGrid
 import com.vtlo.core.ui.InstrumentScreen
@@ -34,8 +35,9 @@ import com.vtlo.core.ui.dpi
 import kotlin.math.roundToInt
 
 /**
- * The TB-303 page. Landscape fits every control on one screen (scaled to the
- * window); portrait scrolls.
+ * The TB-303 pages and the wobble synth page (an engine built with `wobble = true`): the same step sequencer,
+ * keyboard and utilities, with the wobble page's voice panel swapped for round oscillator shapes and a
+ * tempo-synced filter LFO. Landscape fits every control on one screen (scaled to the window); portrait scrolls.
  */
 class BassScreen(
     host: ScreenHost,
@@ -44,6 +46,7 @@ class BassScreen(
     private val number: Int = 1,
 ) : InstrumentScreen(host) {
 
+    private val wobble = engine.wobble
     private val bank: PatternBank get() = engine.bank
     private val pattern get() = engine.selectedPattern
 
@@ -57,6 +60,7 @@ class BassScreen(
     private lateinit var bankButton: PadButton
     private lateinit var playButton: PadButton
     private lateinit var waveButton: PadButton
+    private lateinit var lfoButton: PadButton
     private lateinit var gateButton: PadButton
     private lateinit var accentButton: PadButton
     private lateinit var slideButton: PadButton
@@ -182,14 +186,18 @@ class BassScreen(
         }
         val titles = column()
         titles.addView(TextView(context).apply {
-            text = context.getString(R.string.app_name)
+            text = context.getString(if (wobble) R.string.title_wobble else R.string.app_name)
             setTextColor(Palette.panelText)
             textSize = if (compact) 20f else 24f
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             letterSpacing = 0.12f
         })
         titles.addView(TextView(context).apply {
-            text = if (number > 1) context.getString(R.string.subtitle_n, number) else context.getString(R.string.subtitle)
+            text = when {
+                wobble -> context.getString(R.string.subtitle_wobble)
+                number > 1 -> context.getString(R.string.subtitle_n, number)
+                else -> context.getString(R.string.subtitle)
+            }
             setTextColor(Palette.red)
             textSize = 10f
             letterSpacing = 0.15f
@@ -235,7 +243,7 @@ class BassScreen(
     private fun knob(
         p: Param, label: String, format: (Float) -> String, detents: Int = 0,
         onChange: ((Float) -> Unit)? = null,
-    ): KnobView = KnobView(context, label, p.default, format, { v ->
+    ): KnobView = KnobView(context, label, engine.defaultOf(p), format, { v ->
         engine.set(p, v)
         onChange?.invoke(v)
     }, detents).also {
@@ -246,6 +254,29 @@ class BassScreen(
     private fun pct(v: Float) = "${(v * 100).roundToInt()}"
 
     private fun addVoiceControls(grid: ViewGroup) {
+        if (wobble) {
+            waveButton = PadButton(context, "ROUND SQ", hasLed = true, dark = false).apply {
+                setOnClickListener { cycle(Param.SHAPE, WobbleVoice.SHAPES.size) }
+            }
+            lfoButton = PadButton(context, "LFO SINE", hasLed = true, dark = false).apply {
+                setOnClickListener { cycle(Param.WOB_SHAPE, WobbleVoice.LFO_SHAPES.size) }
+            }
+            grid.addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                addView(waveButton, LinearLayout.LayoutParams(MATCH_PARENT, dpi(44)).apply { bottomMargin = dpi(6) })
+                addView(lfoButton, LinearLayout.LayoutParams(MATCH_PARENT, dpi(44)))
+            })
+            grid.addView(knob(Param.CUTOFF, "CUT OFF", ::pct))
+            grid.addView(knob(Param.RESONANCE, "RESO", ::pct))
+            grid.addView(knob(Param.WOB_RATE, "RATE", { v ->
+                WobbleVoice.RATE_LABELS[(v * (WobbleVoice.RATE_LABELS.size - 1)).roundToInt()]
+            }, detents = WobbleVoice.RATE_LABELS.size))
+            grid.addView(knob(Param.WOB_DEPTH, "DEPTH", ::pct))
+            grid.addView(knob(Param.SUB, "SUB", ::pct))
+            grid.addView(knob(Param.GLIDE, "GLIDE", { v -> "${(4 + v * 450).roundToInt()}ms" }))
+            return
+        }
         waveButton = PadButton(context, "SAW", hasLed = true, dark = false).apply {
             setOnClickListener {
                 val sq = engine.get(Param.WAVEFORM) < 0.5f
@@ -267,10 +298,18 @@ class BassScreen(
         grid.addView(knob(Param.ACCENT, "ACCENT", ::pct))
     }
 
+    /** Steps a stepped parameter (one of [count] values) to its next value. */
+    private fun cycle(p: Param, count: Int) {
+        val i = (engine.get(p) * (count - 1)).roundToInt()
+        engine.set(p, ((i + 1) % count) / (count - 1f))
+        refreshWave()
+    }
+
     private fun addFxControls(grid: ViewGroup) {
         grid.addView(knob(Param.DRIVE, "DRIVE", ::pct))
         grid.addView(knob(Param.DELAY, "DELAY", ::pct))
-        grid.addView(knob(Param.DELAY_FEEDBACK, "FEEDBACK", ::pct))
+        if (wobble) grid.addView(knob(Param.DECAY, "RELEASE", { v -> "${(20 * Math.pow(60.0, v.toDouble())).roundToInt()}ms" }))
+        else grid.addView(knob(Param.DELAY_FEEDBACK, "FEEDBACK", ::pct))
         grid.addView(knob(Param.REVERB, "REVERB", ::pct))
         grid.addView(knob(Param.VOLUME, "VOLUME", ::pct))
     }
@@ -356,7 +395,7 @@ class BassScreen(
     private fun utilityGrid(columns: IntArray, cellHeight: Int = 0): View {
         val grid = FlowGrid(context, dpi(64), cellHeight = cellHeight, allowedColumns = columns)
         grid.addView(pad("PRESET") { v -> showPresets(v) })
-        grid.addView(pad("RANDOM") { modifyPattern { Presets.randomize(bank, pattern) } })
+        grid.addView(pad("RANDOM") { modifyPattern { if (wobble) Presets.randomizeWobble(bank, pattern) else Presets.randomize(bank, pattern) } })
         grid.addView(pad("CLEAR") { modifyPattern { bank.clear(pattern) } })
         grid.addView(pad("UNDO") { restoreUndo() })
         grid.addView(pad("COPY") {
@@ -473,9 +512,10 @@ class BassScreen(
 
     private fun showPresets(anchor: View) {
         PopupMenu(context, anchor).apply {
-            Presets.all.forEachIndexed { i, p -> menu.add(0, i, i, "${p.name}  ·  ${p.bpm} BPM") }
+            val presets = if (wobble) Presets.wobble else Presets.all
+            presets.forEachIndexed { i, p -> menu.add(0, i, i, "${p.name}  ·  ${p.bpm} BPM") }
             setOnMenuItemClickListener { item ->
-                val p = Presets.all[item.itemId]
+                val p = presets[item.itemId]
                 modifyPattern {
                     Presets.load(bank, pattern, p)
                     engine.set(Param.TEMPO, Param.bpmToNorm(p.bpm.toFloat()))
@@ -493,8 +533,8 @@ class BassScreen(
         val params = Param.entries.associateWith { engine.get(it) }
         val steps = snapshot()
         val len = steps[0]
-        host.requestExport("vtlo-303${if (number > 1) "-$number" else ""}-pattern-${patternLabel(pattern)}.wav") { out ->
-            WavExporter.export(out, loops = 4, patternLength = len) { e ->
+        host.requestExport((if (wobble) "vtlo-wobble" else "vtlo-303${if (number > 1) "-$number" else ""}") + "-pattern-${patternLabel(pattern)}.wav") { out ->
+            WavExporter.export(out, loops = 4, patternLength = len, wobble = wobble) { e ->
                 params.forEach { (p, v) -> e.set(p, v) }
                 e.bank.setLength(0, len)
                 for (i in 0 until PatternBank.STEPS) e.bank.setStep(0, i, steps[i + 1])
@@ -515,6 +555,17 @@ class BassScreen(
     }
 
     private fun refreshWave() {
+        if (wobble) {
+            val shape = (engine.get(Param.SHAPE) * (WobbleVoice.SHAPES.size - 1)).roundToInt()
+            waveButton.setLabel(WobbleVoice.SHAPES[shape])
+            waveButton.active = shape > 0
+            waveButton.contentDescription = "Oscillator shape " + WobbleVoice.SHAPES[shape].lowercase()
+            val lfo = (engine.get(Param.WOB_SHAPE) * (WobbleVoice.LFO_SHAPES.size - 1)).roundToInt()
+            lfoButton.setLabel("LFO " + WobbleVoice.LFO_SHAPES[lfo])
+            lfoButton.active = lfo > 0
+            lfoButton.contentDescription = "Wobble LFO shape " + WobbleVoice.LFO_SHAPES[lfo].lowercase()
+            return
+        }
         val sq = engine.get(Param.WAVEFORM) >= 0.5f
         waveButton.setLabel(if (sq) "SQUARE" else "SAW")
         waveButton.active = sq

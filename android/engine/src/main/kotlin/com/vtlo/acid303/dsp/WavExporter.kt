@@ -16,9 +16,10 @@ object WavExporter {
         out: OutputStream,
         loops: Int,
         patternLength: Int,
+        wobble: Boolean = false,
         configure: (AcidEngine) -> Unit,
     ): Int {
-        val engine = AcidEngine(SAMPLE_RATE)
+        val engine = AcidEngine(SAMPLE_RATE, wobble)
         configure(engine)
         val stepSeconds = 60.0 / Param.normToBpm(engine.get(Param.TEMPO)) / 4.0
         val playFrames = (loops * patternLength * stepSeconds * SAMPLE_RATE).toInt()

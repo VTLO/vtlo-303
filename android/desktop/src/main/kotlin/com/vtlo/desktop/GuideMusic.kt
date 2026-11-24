@@ -2,6 +2,7 @@ package com.vtlo.desktop
 
 import com.vtlo.acid303.dsp.Param
 import com.vtlo.acid303.dsp.PatternBank
+import com.vtlo.acid303.dsp.Presets
 import com.vtlo.drums.dsp.DrumParam
 import com.vtlo.drums.dsp.Kit
 import com.vtlo.drums.dsp.TrackParam
@@ -13,8 +14,8 @@ import com.vtlo.sampler.dsp.PadParam
  * starting point, so the video builds the track live, step by step, through the real interface:
  * kick and snare, their tone and drive, then an acid line and its filter, pads and effects.
  *
- * The three parts that only join for the overview at the end (BASS 1, DRUMS 2 and the SAMPLER) are
- * written by [sub], [tribal] and [shimmer] at the moment their screen is shown. The key is A minor.
+ * The parts that only join near the end (WOBBLE, DRUMS 2, BASS 1 and the SAMPLER) are written by
+ * [wobble], [tribal], [sub] and [shimmer] at the moment their screen is shown. The key is A minor.
  */
 object GuideMusic {
     const val BPM = 150f
@@ -34,13 +35,14 @@ object GuideMusic {
         d1.set(DrumParam.REVERB, 0.07f); d1.set(DrumParam.DELAY, 0f)
         d1.set(DrumParam.VOLUME, 0.4f)
 
-        // DRUMS 2: 808 kit for the overview.
+        // DRUMS 2: the frenchcore kit (percussion hits and hats cut from loops) for the overview.
         val d2 = s.drums2
-        for (t in 0 until Kit.TRACKS) d2.setKit(t, Kit.TR808)
-        d2.set(2, TrackParam.TUNE, 0.62f); d2.set(2, TrackParam.LEVEL, 0.85f)
-        d2.set(4, TrackParam.LEVEL, 0.6f); d2.set(4, TrackParam.PAN, 0.65f)
-        d2.set(DrumParam.DRIVE, 0.3f); d2.set(DrumParam.REVERB, 0.28f)
-        d2.set(DrumParam.DELAY, 0.12f); d2.set(DrumParam.VOLUME, 0.34f)
+        for (t in 0 until Kit.TRACKS) d2.setKit(t, Kit.FRC)
+        d2.set(3, TrackParam.LEVEL, 0.85f)
+        d2.set(4, TrackParam.LEVEL, 0.7f); d2.set(4, TrackParam.PAN, 0.65f)
+        d2.set(5, TrackParam.LEVEL, 0.7f); d2.set(7, TrackParam.LEVEL, 0.6f); d2.set(7, TrackParam.PAN, 0.35f)
+        d2.set(DrumParam.DRIVE, 0.25f); d2.set(DrumParam.REVERB, 0.2f)
+        d2.set(DrumParam.DELAY, 0.12f); d2.set(DrumParam.VOLUME, 0.5f)
 
         // BASS 1: a short square sub for the overview.
         val b1 = s.bass
@@ -82,13 +84,27 @@ object GuideMusic {
         s.engine.partOf(s.bass).on = true
     }
 
-    /** DRUMS 2: tribal toms in 3 + 3 + 3 + 3 + 4 and syncopated rim shots. */
+    /** DRUMS 2: percussion hits in 3 + 3 + 3 + 3 + 4, syncopated clicks, rolling hats and shaker. */
     fun tribal(s: Studio) {
         val d = s.drums2
-        for (step in intArrayOf(0, 3, 6, 9, 12)) d.bank.toggle(0, 2, step)
+        for (step in intArrayOf(0, 3, 6, 9, 12)) d.bank.toggle(0, 3, step)
         for (step in intArrayOf(2, 7, 10, 15)) d.bank.toggle(0, 4, step)
-        d.bank.toggleAccent(0, 2, 0); d.bank.toggleAccent(0, 2, 9)
+        for (step in intArrayOf(1, 3, 5, 7, 9, 11, 13, 15)) d.bank.toggle(0, 5, step)
+        for (step in intArrayOf(1, 5, 9, 13)) d.bank.toggle(0, 7, step)
+        d.bank.toggleAccent(0, 3, 0); d.bank.toggleAccent(0, 3, 9)
         s.engine.partOf(d).on = true
+    }
+
+    /** WOBBLE: the "Half-Time Wobble" preset moved up to A (A1, C2, D2), a long wobbling note per half bar. */
+    fun wobble(s: Studio) {
+        val w = s.wobble
+        Presets.load(w.bank, 0, Presets.wobble[0])
+        for (i in 0 until PatternBank.STEPS) {
+            val v = w.bank.step(0, i)
+            if (PatternBank.gate(v)) w.bank.setStep(0, i, PatternBank.withNote(v, PatternBank.note(v) + 4))
+        }
+        w.set(Param.WOB_RATE, 2f / 8f) // 1/4 to begin with
+        s.engine.partOf(w).on = true
     }
 
     /** SAMPLER: off-beat shimmer and ghost hits. */

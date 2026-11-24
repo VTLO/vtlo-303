@@ -92,6 +92,73 @@ object DrumPresets {
         )),
     )
 
+    /** Grooves for the sample-pack kits of DRUMS 2. */
+    val hard = listOf(
+        DrumPreset("Frenchcore", 180, Kit.FRC, rows(
+            BD to "X..xX..xX..xX.x.",
+            SD to "....X.......X...",
+            TOM to "...x......x.....",
+            CP to "..x...x...x...x.",
+            CH to "x.x.x.x.x.x.x.x.",
+            OH to "..x...x...x...x.",
+        )),
+        DrumPreset("Hardtek", 150, Kit.HTK, rows(
+            BD to "X...X...X...X...",
+            SD to "........X.......",
+            CP to "..x..x..x..x..x.",
+            RS to ".x..x..x..x..x..",
+            CH to "x.x.x.x.x.x.x.x.",
+            OH to "..x...x...x...x.",
+            CY to "X.......X.......",
+        )),
+        DrumPreset("Tribe", 160, Kit.HTK, rows(
+            BD to "X..x..x.X..x..x.",
+            TOM to "..x..x..x..x..x.",
+            CP to ".x..x..x..x..x..",
+            RS to "x..x..x..x..x..x",
+            CH to "xxxxxxxxxxxxxxxx",
+            OH to "..x.......x.....",
+        )),
+        DrumPreset("Drum & Bass", 174, Kit.DNB, rows(
+            BD to "X.........X.....",
+            SD to "....X.......X...",
+            CH to "x.x.x.x.x.x.x.x.",
+            OH to "..............x.",
+            CY to ".......x........",
+        )),
+        DrumPreset("Dubstep", 140, Kit.DNB, rows(
+            BD to "X.......x.......",
+            SD to "........X.......",
+            TOM to "..........x.....",
+            RS to "............x...",
+            CH to "x.x.x.x.x.x.x.x.",
+            OH to "......x.......x.",
+        )),
+        DrumPreset("Kick bank", 150, Kit.FCK, rows(
+            0 to "X...X...X...X...",
+            1 to "..x...x...x...x.",
+            2 to "....x.......x...",
+            4 to "x.......X.......",
+            5 to "..x.......x.....",
+            7 to ".......x.......x",
+        )),
+        DrumPreset("Bass hits", 140, Kit.BAS, rows(
+            0 to "X.......x.......",
+            2 to "..x.......x.....",
+            4 to "....x.......x...",
+            6 to "........x...x...",
+        )),
+        DrumPreset("Kicks and bass", 150, Kit.MIX, rows(
+            3 to "X...X...X...X...",
+            5 to "..x...x...x...x.",
+            0 to "x.......x.......",
+            6 to "......x.......x.",
+        )),
+    )
+
+    /** The presets drum machine [number] offers. */
+    fun forMachine(number: Int): List<DrumPreset> = if (number == 1) all else hard
+
     fun load(bank: StepPatternBank, pattern: Int, preset: DrumPreset) {
         for (t in 0 until Kit.TRACKS) bank.setRow(pattern, t, preset.rows[t])
         bank.setLength(pattern, StepPatternBank.STEPS)
