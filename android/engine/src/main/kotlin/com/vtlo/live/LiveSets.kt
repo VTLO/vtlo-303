@@ -73,7 +73,7 @@ object LiveSets {
 
     private fun wobbleRate(division: Int) = division / 8f // see WobbleVoice.RATE_LABELS: 0 = 1 bar ... 8 = 1/32
 
-    // ═══ UK drum and bass · 174 BPM · F minor ═══
+    // ═══ UK drum and bass · 170 BPM · F minor ═══
 
     /**
      * Two-step drums on the DNB kit, an 808 layer for weight and fills, a rolling wobble sub and sparse acid stabs.
@@ -81,7 +81,7 @@ object LiveSets {
      * 5 fill, 6 half-time break, 7 outro.
      */
     val ukDnb = LiveSet(
-        "UK Drum & Bass", 174, "Two-step, rolling sub and wobble, F minor, 174 BPM",
+        "UK Drum & Bass", 170, "Two-step, rolling sub and wobble, F minor, 170 BPM",
         listOf("INTRO", "GROOVE", "DROP", "BUILD", "FILL", "BREAK", "OUTRO", "SPARE"),
     ) { e ->
         // DRUMS 2: the main kit.
@@ -134,7 +134,7 @@ object LiveSets {
         e.bass2.set(Param.VOLUME, 0.4f)
     }
 
-    // ═══ Hardtekno tribe · 150 BPM · A minor ═══
+    // ═══ Hardtekno tribe · 155 BPM · A minor ═══
 
     /**
      * A distorted four-on-the-floor on the HTK kit, a 909 for tribal toms, snare rolls and hats, a square sub, a
@@ -143,7 +143,7 @@ object LiveSets {
      * (no kick: toms, perc and acid), 7 outro.
      */
     val hardtekTribe = LiveSet(
-        "Hardtekno Tribe", 150, "Distorted kick, tribal toms, acid and stabs, A minor, 150 BPM",
+        "Hardtekno Tribe", 155, "Distorted kick, tribal toms, acid and stabs, A minor, 155 BPM",
         listOf("INTRO", "TRIBE", "DROP", "BUILD", "FILL", "BREAK", "OUTRO", "SPARE"),
     ) { e ->
         // DRUMS 2: HTK kit, a heavily driven kick, off-beat open hats, a long sub boom on the drop.

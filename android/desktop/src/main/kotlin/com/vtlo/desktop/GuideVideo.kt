@@ -217,14 +217,13 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio, p
         endAt = 89.6; totalSeconds = 92.1
         cards.add(Card(0.0, 3.4, "VTLO 3O3", "Live set", "UK drum and bass, then hardtekno tribe: scenes, filters and effects, played live"))
 
-        // ═══ PART 1 · UK drum and bass, 174 BPM ═══
-        cards.add(Card(3.4, 7.0, "PART 1", "UK DRUM & BASS", "174 BPM · F minor · two-step drums, rolling sub, wobble"))
-        at(3.9) { LiveSets.ukDnb.load(studio.engine); showPage("DRUMS 2") }
-        at(7.1) { window.toast("UK Drum & Bass loaded: eight scenes (A1-A8) on every instrument") }
-        val t1 = 8.5
-        val bar1 = 240.0 / 174.0
+        // ═══ Part 1: UK drum and bass ═══
+        at(3.7) { LiveSets.ukDnb.load(studio.engine); showPage("DRUMS 2") }
+        at(4.1) { window.toast("UK Drum & Bass loaded: eight scenes (A1-A8) on every instrument") }
+        val t1 = 6.2
+        val bar1 = 240.0 / LiveSets.ukDnb.bpm
         fun b1(k: Int) = t1 + k * bar1
-        caption(7.6, "SET loads a whole track: DNB kit, 808 layer, wobble sub, 303 stabs, tempo 174")
+        caption(4.4, "UK drum and bass, 170 BPM: SET loads the whole track, with eight scenes")
         click(t1) { runPad() }
         caption(b1(0) + 0.2, "Scene 1 · INTRO: hats, shaker and ticks on the DNB kit")
         sceneAt(b1(2), 1)
@@ -260,15 +259,14 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio, p
         caption(b1(22) + 0.2, "Scene 1 · back to the intro: the set is brought down")
         click(b1(24) + 0.3) { runPad() }
 
-        // ═══ PART 2 · hardtekno tribe, 150 BPM ═══
-        val p2 = b1(24) + 2.2
-        cards.add(Card(p2 - 0.4, p2 + 3.2, "PART 2", "HARDTEKNO TRIBE", "150 BPM · A minor · distorted kick, tribal toms, acid, mental stabs"))
-        at(p2 + 0.1) { LiveSets.hardtekTribe.load(studio.engine); showPage("DRUMS 2") }
-        at(p2 + 3.4) { window.toast("Hardtekno Tribe loaded: the HTK kit, a 909, acid, sub and stabs") }
-        val t2 = p2 + 4.2
-        val bar2 = 240.0 / 150.0
+        // ═══ Part 2: hardtekno tribe ═══
+        val p2 = b1(24) + 1.0
+        at(p2) { LiveSets.hardtekTribe.load(studio.engine); showPage("DRUMS 2") }
+        at(p2 + 0.4) { window.toast("Hardtekno Tribe loaded: the HTK kit, a 909, acid, sub and stabs") }
+        val t2 = p2 + 2.6
+        val bar2 = 240.0 / LiveSets.hardtekTribe.bpm
         fun b2(k: Int) = t2 + k * bar2
-        caption(p2 + 3.5, "Another set, another tempo: 150 BPM and the HTK kit")
+        caption(p2 + 0.5, "Hardtekno tribe, 155 BPM: another set, another tempo, the HTK kit")
         click(t2) { runPad() }
         caption(b2(0) + 0.2, "Scene 1 · INTRO: a driven kick and off-beat open hats")
         sceneAt(b2(2), 1)

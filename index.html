@@ -23,25 +23,31 @@
       decoding="async"
       draggable="false"
     />
-    <!-- Video guide (English captions, tekno soundtrack): autoplays muted and loops; the controls unmute it. -->
-    <video
-      class="site-guide"
-      autoplay
-      muted
-      loop
-      playsinline
-      controls
-      controlslist="nodownload noremoteplayback"
-      disablepictureinpicture
-      preload="auto"
-      poster="assets/guide-poster.jpg"
-      width="960"
-      height="540"
-      aria-label="Video guide: getting started with VTLO 3O3, captioned in English, with a hardtek tribe soundtrack"
-    >
-      <source src="assets/guide.webm" type='video/webm; codecs="vp9, opus"' />
-      <source src="assets/guide.mp4" type='video/mp4; codecs="avc1.4D401F, mp4a.40.2"' />
-    </video>
+    <!-- Videos (English captions): the guide autoplays muted and loops; the controls unmute it. The tabs swap in the live set. -->
+    <div class="guide-box">
+      <video
+        class="site-guide"
+        autoplay
+        muted
+        loop
+        playsinline
+        controls
+        controlslist="nodownload noremoteplayback"
+        disablepictureinpicture
+        preload="auto"
+        poster="assets/guide-poster.jpg"
+        width="960"
+        height="540"
+        aria-label="Video guide: getting started with VTLO 3O3, captioned in English, with a tekno soundtrack"
+      >
+        <source src="assets/guide.webm" type='video/webm; codecs="vp9, opus"' />
+        <source src="assets/guide.mp4" type='video/mp4; codecs="avc1.4D401F, mp4a.40.2"' />
+      </video>
+      <div class="guide-tabs" role="group" aria-label="Choose the video">
+        <button type="button" class="on" data-clip="guide" aria-pressed="true">GUIDE</button>
+        <button type="button" data-clip="live-set" aria-pressed="false">LIVE SET: DNB + HARDTEK</button>
+      </div>
+    </div>
     <div id="tb303" class="tb303-panel">
       <!-- ═══ TOP STRIP: jacks + knobs ═══ -->
       <header class="top-strip">
@@ -510,6 +516,25 @@
           v.pause();
           return;
         }
+        // The two clips: the guide, and the live set (UK drum and bass, then hardtekno tribe).
+        var tabs = document.querySelectorAll(".guide-tabs button");
+        tabs.forEach(function (b) {
+          b.addEventListener("click", function () {
+            var clip = b.getAttribute("data-clip");
+            tabs.forEach(function (t) {
+              var on = t === b;
+              t.classList.toggle("on", on);
+              t.setAttribute("aria-pressed", on ? "true" : "false");
+            });
+            v.poster = "assets/" + (clip === "guide" ? "guide" : "live-set") + "-poster.jpg";
+            v.innerHTML =
+              '<source src="assets/' + clip + '.webm" type=\'video/webm; codecs="vp9, opus"\' />' +
+              '<source src="assets/' + clip + '.mp4" type=\'video/mp4; codecs="avc1.4D401F, mp4a.40.2"\' />';
+            v.setAttribute("aria-label", clip === "guide" ? "Video guide: getting started with VTLO 3O3" : "Live set: UK drum and bass, then hardtekno tribe");
+            v.load();
+            v.play().catch(function () {});
+          });
+        });
         if ("IntersectionObserver" in window) {
           new IntersectionObserver(
             function (entries) {

@@ -3,7 +3,12 @@
 </p>
 
 <p align="center">
-  <a href="assets/guide.mp4" title="Video guide, 1 min 46 s, with sound"><img src="assets/guide.webp" width="640" alt="Video guide: a begineer's mod track built live, from the first kick to the effects"></a>
+ <a href="assets/guide.mp4" title="Video guide, 1 min 46 s, with sound"><img src="assets/guide.webp" width="640" alt="Video guide: a begineer's mod track built live, from the first kick to the effects"></a>
+</p>
+
+<p align="center">
+  <a href="assets/live-set.mp4" title="Live set video, 1 min 27 s, with sound: part 1 UK drum and bass, part 2 hardtekno tribe"><img src="assets/live-set.webp" width="640" alt="Live set video: UK drum and bass at 170 BPM, then hardtekno tribe at 155 BPM, played with scenes"></a>
+  <br><sub>Live set (1 min 27 s): part 1 UK drum and bass, part 2 hardtekno tribe</sub>
 </p>
 
 # VTLO 303
@@ -85,10 +90,10 @@ for the first time you press REC.
 - **Live sets and scenes**: two complete tracks are built in. **SET** (desktop strip) or
   **LIVE** (Android) loads one into the whole studio, replacing patterns A1 to A8 of every
   instrument, with its own tempo, kits and sounds:
-  - **UK Drum & Bass**, 174 BPM, F minor: two-step drums on the DNB kit (kick on 1 and the
+  - **UK Drum & Bass**, 170 BPM, F minor: two-step drums on the DNB kit (kick on 1 and the
     "and" of 3, snare on 2 and 4 with ghost notes, shuffled hats), an 808 layer for the drop,
     a rolling WOBBLE sub that turns into a wobble in the drop, 303 stabs with delay.
-  - **Hardtekno Tribe**, 150 BPM, A minor: a driven four-on-the-floor kick on the HTK kit
+  - **Hardtekno Tribe**, 155 BPM, A minor: a driven four-on-the-floor kick on the HTK kit
     with a long sub boom, off-beat open hats, 909 toms in 3 + 3 + 2, the BASS 2 acid line,
     a square sub on BASS 1 and dark WOBBLE stabs with a fast filter LFO.
   - Eight **scenes** (A1 to A8 on every instrument): 1 intro, 2 groove or tribe, 3 drop,

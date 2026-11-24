@@ -89,11 +89,11 @@ class LiveSetsTest {
         val e = studio()
         LiveSets.ukDnb.load(e)
         assertTrue((0 until 8).all { e.drums2.kit(it) == Kit.DNB })
-        assertEquals(174.0, e.bpmSetting(), 0.6)
+        assertEquals(170.0, e.bpmSetting(), 0.6)
         LiveSets.hardtekTribe.load(e)
         assertTrue((0 until 8).all { e.drums2.kit(it) == Kit.HTK })
         assertTrue((0 until 8).all { e.drums.kit(it) == Kit.TR909 })
-        assertEquals(150.0, e.bpmSetting(), 0.6)
+        assertEquals(155.0, e.bpmSetting(), 0.6)
         // Loading replaces the old patterns: the DnB wobble drop is gone.
         assertEquals(0, e.wobble.bank.step(0, 0) and (1 shl 8))
     }

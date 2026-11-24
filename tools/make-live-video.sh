@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Records the live-set video from the real desktop app and encodes the clips:
-# two distinct parts, UK drum and bass (174 BPM) and hardtekno tribe (150 BPM), played with the built-in
+# two distinct parts, UK drum and bass (170 BPM) and hardtekno tribe (155 BPM), played with the built-in
 # live sets and their scenes (android/engine/.../live/LiveSets.kt, scripted in GuideVideo.kt, scenario "live").
 #   tools/make-live-video.sh [work-dir]
 # Needs a built desktop app (cd android && ./gradlew -PdesktopOnly :desktop:installDist), ffmpeg
