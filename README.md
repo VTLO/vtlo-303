@@ -13,7 +13,7 @@ as an **Android app**, and as a **Windows / Linux desktop app**. Download the
 ready-made builds from the [latest release](../../releases/latest) or from
 [`downloads/`](downloads/).
 
-## Android app (`android/`)
+## The "Live act ? Always ready in my pocket"version (`android/`)
 
 <img src="assets/vtlo-coin.gif" width="96" align="right" alt="VTLO two-faced coin emblem">
 
@@ -27,7 +27,7 @@ Android 8.0 (API 26) and newer. Permissions: foreground service and
 notifications (background playback) and the microphone, which is only asked
 for the first time you press REC.
 
-**Studio**
+**BUILT IN Studio**
 - One transport: RUN on any screen starts all six instruments on the same
   sample, and they share tempo and swing, so they stay locked. The B1, B2, WB,
   D1, D2 and SMP ON/OFF buttons take a part out of the mix without stopping it.
@@ -44,8 +44,8 @@ for the first time you press REC.
   RELEASE the note length. Same 16-step sequencer as the basses (accent, slide,
   octaves), wobble presets, pads on a low F, WAV export.
 - **DRUMS 2 kits**: the pad row picks one of six sample-pack kits instead of the
-  classic machines: FRC (frenchcore kick, snare, perc and hats cut from loops),
-  HTK (hardtek), DNB (drum and bass / dubstep), FCK (a bank of tuned frenchcore kicks),
+  classic machines: FRC (fr3nchcore kick, snare, perc and hats cut from loops),
+  HTK (hardtekno), DNB (drum and bass / dubstep), FCK (a bank of tuned fr3nchcore kicks),
   BAS (eight sustained bass hits to play pitched with TUNE or the pads) and MIX.
   Each track can take any kit with its KIT knob; the presets (Frenchcore, Hardtek,
   Tribe, Drum & Bass, Dubstep...) set tempo, kit and groove. The samples are rebuilt
@@ -80,8 +80,8 @@ for the first time you press REC.
 - Edge-to-edge, predictive back, resizable windows; TalkBack can operate every
   control.
 
-**Bass line**
-- TB-303 voice modelled on Open303's measurements: PolyBLEP saw/square, 44 Hz
+**Bass lin3rz**
+- TB-303 vox modelled by MLOPS finetuned by real Roland tb303 circuits's measurements: PolyBLEP saw/square, 44 Hz
   pre-HP, 4-pole diode-ladder model with 150 Hz feedback HP and soft-clipping
   feedback, post 24 Hz HP / 14 Hz all-pass / 7.5 Hz notch, calibrated
   cutoff/env-mod curves, 200 ms accent decay, 60 ms RC slide.
