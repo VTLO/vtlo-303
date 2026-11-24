@@ -9,8 +9,10 @@ import com.vtlo.fx.FxId
 import com.vtlo.sampler.dsp.PadParam
 
 /**
- * The soundtrack of the video guide, programmed in the app itself: an old-school tekno / hardtek tribe
- * groove at 160 BPM (slow enough for the on-screen actions to read clearly), built from the conventions of that style.
+ * The soundtrack of the video guide, programmed in the app itself: a French tekno / mental
+ * tribe hardtekno track in A minor at 150 BPM (slow enough for the on-screen actions to read clearly):
+ * a distorted pitch-enveloped kick, a hypnotic acid line, crisp offbeat hats and rolling tribal percussion,
+ * arranged as intro, tension build-up (sub-bass cut, accelerating snare roll, resonant filter sweep) and drop.
  *
  *  - DRUMS 1 (909): a heavily driven, tuned-down kick on every beat, claps on 2 and 4, offbeat open hats
  *    over rolling 16th hats. The tom track is left empty on purpose: the video programs it live;
@@ -20,7 +22,7 @@ import com.vtlo.sampler.dsp.PadParam
  *  - SAMPLER: shimmer and ghost hits around the beat.
  */
 object GuideMusic {
-    const val BPM = 160f
+    const val BPM = 150f
 
     fun setUp(s: Studio) {
         // Clear the factory patterns first.
@@ -39,7 +41,7 @@ object GuideMusic {
         d1.set(0, TrackParam.LEVEL, 1f); d1.set(0, TrackParam.TUNE, 0.34f) // a deep kick
         d1.set(3, TrackParam.LEVEL, 0.75f)
         d1.set(5, TrackParam.LEVEL, 0.5f); d1.set(6, TrackParam.LEVEL, 0.62f)
-        d1.set(DrumParam.DRIVE, 0.74f); d1.set(DrumParam.ACCENT, 0.8f)
+        d1.set(DrumParam.DRIVE, 0.8f); d1.set(DrumParam.ACCENT, 0.8f)
         d1.set(DrumParam.REVERB, 0.07f); d1.set(DrumParam.DELAY, 0f)
         d1.set(DrumParam.VOLUME, 0.5f)
 
@@ -58,21 +60,21 @@ object GuideMusic {
         fun note(bank: PatternBank, i: Int, n: Int, accent: Boolean = false, slide: Boolean = false) =
             bank.setStep(0, i, PatternBank.pack(n, true, accent, slide))
         val b1 = s.bass
-        note(b1.bank, 2, 36); note(b1.bank, 3, 48); note(b1.bank, 6, 36, accent = true); note(b1.bank, 7, 36)
-        note(b1.bank, 10, 36); note(b1.bank, 11, 39); note(b1.bank, 14, 36, accent = true); note(b1.bank, 15, 34)
+        note(b1.bank, 2, 33); note(b1.bank, 3, 57, accent = true); note(b1.bank, 6, 33, accent = true); note(b1.bank, 7, 33)
+        note(b1.bank, 10, 33); note(b1.bank, 11, 60, accent = true); note(b1.bank, 14, 33, accent = true); note(b1.bank, 15, 31)
         b1.set(Param.WAVEFORM, 1f)
         b1.set(Param.CUTOFF, 0.28f); b1.set(Param.RESONANCE, 0.4f); b1.set(Param.ENV_MOD, 0.45f)
         b1.set(Param.DECAY, 0.22f); b1.set(Param.ACCENT, 0.7f); b1.set(Param.DRIVE, 0.7f)
         b1.set(Param.DELAY, 0f); b1.set(Param.REVERB, 0f); b1.set(Param.VOLUME, 0.5f)
 
-        // ─── BASS 2: the hypnotic acid line (C minor pentatonic) ───
+        // ─── BASS 2: the hypnotic acid line (A minor pentatonic) ───
         val b2 = s.bass2
         val line = listOf(
-            0 to 48, 2 to 48, 3 to 51, 5 to 55, 7 to 48, 8 to 46, 10 to 48, 12 to 51, 13 to 53, 15 to 55,
+            0 to 45, 2 to 45, 3 to 48, 5 to 52, 7 to 45, 8 to 43, 10 to 45, 12 to 48, 13 to 50, 15 to 52,
         )
         for ((i, n) in line) note(b2.bank, i, n, accent = i in intArrayOf(0, 5, 10, 15), slide = i in intArrayOf(3, 13))
         b2.set(Param.WAVEFORM, 0f)
-        b2.set(Param.CUTOFF, 0.36f); b2.set(Param.RESONANCE, 0.8f); b2.set(Param.ENV_MOD, 0.8f)
+        b2.set(Param.CUTOFF, 0.22f); b2.set(Param.RESONANCE, 0.85f); b2.set(Param.ENV_MOD, 0.8f)
         b2.set(Param.DECAY, 0.3f); b2.set(Param.ACCENT, 0.85f); b2.set(Param.DRIVE, 0.55f)
         b2.set(Param.DELAY, 0.3f); b2.set(Param.DELAY_FEEDBACK, 0.5f); b2.set(Param.REVERB, 0.15f)
         b2.set(Param.VOLUME, 0.38f)
@@ -94,5 +96,80 @@ object GuideMusic {
         // The arrangement starts with the drums alone; the video brings the other parts in.
         s.engine.parts.forEach { it.on = false }
         s.engine.partOf(s.drums).on = true
+    }
+
+    // ─── The arrangement ──────────────────────────────────────
+
+    private const val BASE_B1 = 0.5f
+    private const val BASE_B2 = 0.38f
+    private const val BASE_SMP = 0.36f
+
+    /**
+     * Schedules the arrangement through [at] (video seconds), the transport starting at [t0]; one bar is 1.6 s.
+     * Intro: kick, hats, then the acid line and shimmer. Build-up (bars 5-7): the sub-bass is cut, a snare roll
+     * speeds up from quarter notes to 16ths to a 1/32 stutter, the acid filter sweeps open, and the kick drops
+     * out for the last beat. Drop (bar 8): everything returns at once, ducked on every kick (a sidechain pump).
+     */
+    fun arrange(s: Studio, at: (Double, () -> Unit) -> Unit, t0: Double, end: Double, fps: Int) {
+        val bar = 4 * 60.0 / BPM
+        val beat = 60.0 / BPM
+        fun on(e: com.vtlo.core.audio.SequencerEngine, v: Boolean) { s.engine.partOf(e).on = v }
+        val snare = 1
+        fun snareRow(steps: IntArray) = s.drums.bank.setRow(0, snare, steps.fold(0) { m, i -> m or (1 shl i) } or (1 shl 16))
+
+        // Intro.
+        at(t0 + 1 * bar) { on(s.bass2, true) }
+        at(t0 + 3 * bar) { on(s.sampler, true) }
+        at(t0 + 5 * bar) { /* build-up starts */ }
+        // The acid filter opens slowly through the intro, then sweeps wide open into the drop.
+        sweep(s, at, t0 + 1 * bar, t0 + 5 * bar, 0.22f, 0.4f)
+        sweep(s, at, t0 + 5 * bar, t0 + 8 * bar, 0.4f, 0.95f)
+        at(t0 + 5 * bar) { s.bass2.set(Param.RESONANCE, 0.9f) }
+
+        // Build-up: sub-bass cut and the accelerating roll.
+        at(t0 + 5 * bar) { on(s.bass, false); snareRow(intArrayOf(0, 4, 8, 12)); s.drums.set(1, TrackParam.LEVEL, 0.7f) }
+        at(t0 + 6 * bar) { snareRow(IntArray(8) { it * 2 }) }
+        at(t0 + 7 * bar) { snareRow(IntArray(16) { it }) }
+        at(t0 + 7.5 * bar) { s.engine.fx.effect(FxId.BEAT_REPEAT).apply { set(0, 1f); on = true } } // 1/32 stutter
+        at(t0 + 7.75 * bar) { s.drums.set(0, TrackParam.LEVEL, 0f) } // the kick drops out for the last beat
+
+        // Drop.
+        at(t0 + 8 * bar) {
+            s.engine.fx.effect(FxId.BEAT_REPEAT).apply { on = false; set(0, 0.75f) }
+            s.drums.bank.setRow(0, snare, 1 shl 15 or (1 shl 31)) // back to the single ghost snare
+            s.drums.set(0, TrackParam.LEVEL, 1f); s.drums.set(1, TrackParam.LEVEL, 0.5f)
+            s.bass2.set(Param.RESONANCE, 0.85f)
+            on(s.bass, true); on(s.drums2, true)
+        }
+        sweep(s, at, t0 + 8 * bar, t0 + 10 * bar, 0.95f, 0.5f)
+
+        // The sidechain pump: bass, acid and shimmer duck on every kick and swell back within the beat.
+        val duck = floatArrayOf(0.2f, 0.55f, 0.85f)
+        var b = t0 + 1 * bar
+        while (b < end) {
+            val depth = if (b >= t0 + 8 * bar) 1f else 0.6f
+            for ((j, f) in duck.withIndex()) {
+                val k = 1f - depth * (1f - f)
+                at(b + j.toDouble() / fps) { pump(s, k) }
+            }
+            at(b + duck.size.toDouble() / fps) { pump(s, 1f) }
+            b += beat
+        }
+    }
+
+    private fun pump(s: Studio, k: Float) {
+        s.bass.set(Param.VOLUME, BASE_B1 * k)
+        s.bass2.set(Param.VOLUME, BASE_B2 * k)
+        s.sampler.set(com.vtlo.sampler.dsp.SamplerParam.VOLUME, BASE_SMP * k)
+    }
+
+    /** Moves the acid filter's cutoff from [from] to [to] between [t1] and [t2], in steps of a tenth of a second. */
+    private fun sweep(s: Studio, at: (Double, () -> Unit) -> Unit, t1: Double, t2: Double, from: Float, to: Float) {
+        var t = t1
+        while (t < t2) {
+            val v = from + (to - from) * ((t - t1) / (t2 - t1)).toFloat()
+            at(t) { s.bass2.set(Param.CUTOFF, v) }
+            t += 0.1
+        }
     }
 }

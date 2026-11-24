@@ -173,8 +173,7 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
     private fun script() {
         // Music: the transport starts under the title card, the drums alone; parts join one by one.
         at(0.6) { window.toggleTransport() }
-        at(5.0) { setPart(studio.bass, true) }
-        at(7.2) { setPart(studio.sampler, true) }
+        GuideMusic.arrange(studio, ::at, 0.6, endAt, fps)
 
         // The title card runs until 3.4 s.
         caption(3.2, "Six screens: basses, drums, sampler and effects")
@@ -185,11 +184,7 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
         click(8.0) { tab("FX") }
         click(9.0) { tab("DRUMS 1") }
 
-        // RUN stops everything (a breakdown), and starts everything again, in sync (the drop).
-        caption(9.8, "RUN starts every instrument, locked to the same tempo")
-        click(10.4) { runPad() }
-        at(11.4) { setPart(studio.bass2, true); setPart(studio.drums2, true) }
-        click(11.9) { runPad() }
+                caption(9.8, "Every instrument is locked to the same tempo: build-up, roll, then the drop")
 
         // The tribal toms are programmed live: 3 + 3 + 3 + 3 + 4 steps.
         caption(13.4, "Click a step to program it")
@@ -226,8 +221,8 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
         click(38.4) { pad("16 BARS") }
         click(39.4) { pad("8 BARS") }
 
-        // At 160 BPM the 8-bar loop is 12 s long, so the recorded phrase returns around 44 s.
-        caption(43.4, "The loop keeps playing, layer after layer; UNDO and CLEAR fix mistakes")
+        // At 150 BPM the 8-bar loop is 12.8 s long, so the recorded phrase returns around 45 s.
+        caption(45.2, "The loop keeps playing, layer after layer; UNDO and CLEAR fix mistakes")
 
         caption(47.2, "FX tab: six effects on the whole mix; SYNC locks them to the tempo")
         click(47.4) { tab("FX") }
