@@ -222,24 +222,27 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
             click(timeOf(base + 8.0) + 1.0) { pad("REC") } // disarm after the phrase
         }
 
-        caption(36.2, "The loop keeps playing, layer after layer; UNDO and CLEAR fix mistakes")
+        caption(36.2, "Choose a loop of 8 or 16 bars")
         click(38.4) { pad("16 BARS") }
         click(39.4) { pad("8 BARS") }
 
-        caption(45.0, "FX tab: six effects on the whole mix; SYNC locks them to the tempo")
-        click(45.2) { tab("FX") }
-        click(46.8) { fxToggle(3) } // flanger on
-        click(47.9) { pad("SYNC", 3) }
-        drag(49.0, 1.0, 0f, -34f) { knob(3 * 4) } // flanger rate: now a note length
-        click(50.6) { fxToggle(4) } // chorus on
-        click(51.7) { fxToggle(5) } // ghost on: reversed echoes
-        click(53.0) { fxToggle(0) } // beat repeat on: a stutter roll to the end
+        // At 160 BPM the 8-bar loop is 12 s long, so the recorded phrase returns around 44 s.
+        caption(43.4, "The loop keeps playing, layer after layer; UNDO and CLEAR fix mistakes")
+
+        caption(47.2, "FX tab: six effects on the whole mix; SYNC locks them to the tempo")
+        click(47.4) { tab("FX") }
+        click(49.0) { fxToggle(3) } // flanger on
+        click(50.1) { pad("SYNC", 3) }
+        drag(51.2, 1.0, 0f, -34f) { knob(3 * 4) } // flanger rate: now a note length
+        click(52.8) { fxToggle(4) } // chorus on
+        click(53.9) { fxToggle(5) } // ghost on: reversed echoes
+        click(55.2) { fxToggle(0) } // beat repeat on: a stutter roll to the end
     }
 
     private fun fxToggle(i: Int): Widget? = window.scriptWidgets().filterIsInstance<Pad>().filter { it.text == "OFF" || it.text == "ON" }.getOrNull(i)
 
-    private val endAt = 56.0
-    private val totalSeconds = 58.5
+    private val endAt = 58.2
+    private val totalSeconds = 60.7
 
     // ─── Running ─────────────────────────────────────────────
 

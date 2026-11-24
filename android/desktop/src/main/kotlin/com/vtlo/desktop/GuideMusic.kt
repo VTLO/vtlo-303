@@ -10,7 +10,7 @@ import com.vtlo.sampler.dsp.PadParam
 
 /**
  * The soundtrack of the video guide, programmed in the app itself: an old-school tekno / hardtek tribe
- * groove at 174 BPM, built from the conventions of that style.
+ * groove at 160 BPM (slow enough for the on-screen actions to read clearly), built from the conventions of that style.
  *
  *  - DRUMS 1 (909): a heavily driven, tuned-down kick on every beat, claps on 2 and 4, offbeat open hats
  *    over rolling 16th hats. The tom track is left empty on purpose: the video programs it live;
@@ -20,7 +20,7 @@ import com.vtlo.sampler.dsp.PadParam
  *  - SAMPLER: shimmer and ghost hits around the beat.
  */
 object GuideMusic {
-    const val BPM = 174f
+    const val BPM = 160f
 
     fun setUp(s: Studio) {
         // Clear the factory patterns first.
