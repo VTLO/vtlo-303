@@ -58,7 +58,6 @@ reproduced here only to document how the original works.
 
 </details>
 
-## Android app (`android/`)
 ## The "Live act ? Always ready in my pocket"version (`android/`)
 
 <img src="assets/vtlo-coin.gif" width="96" align="right" alt="VTLO two-faced coin emblem">
