@@ -12,9 +12,13 @@
 
 # VTLO 303
 
-A TB-303 bass line, a 606/808/909 drum machine and a sampler: in the **browser**,
-as an **Android app**, and as a **Windows / Linux desktop app**. Download the
-ready-made builds from the [latest release](../../releases/latest) or from
+**VTLO 3O3** is a standalone, offline studio built around the TB-303: two bass lines, a **WOBBLE**
+synth for dubstep and drum and bass, a 606/808/909 drum machine, a second drum machine with
+sample-pack kits, a sampler, six tempo-synced master effects and a 16-pad loop-recording deck,
+all on one transport. Two built-in **live sets** (UK Drum & Bass at 170 BPM, Hardtekno Tribe at
+155 BPM) come with eight scenes each. It runs as an **Android app** and as a **Windows / Linux
+desktop app**; the **browser** version is the TB-303 bass line synth with the two videos. Download
+the ready-made builds from the [latest release](../../releases/latest) or from
 [`downloads/`](downloads/).
 
 ## TB-303 processing unit

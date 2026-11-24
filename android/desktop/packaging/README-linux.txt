@@ -9,4 +9,7 @@ No installation needed; the Java runtime is included. Your patterns and
 samples are saved in ~/.vtlo-3o3.
 
 A short guide in French opens on first launch; the ? button shows it again.
-Keys: Space run/stop, Tab next screen (F1-F3 jump), Esc panic.
+Seven screens: BASS 1, BASS 2, WOBBLE, DRUMS 1, DRUMS 2, SAMPLER, FX.
+Keys: Space run/stop, Tab next screen (F1-F7 jump), Esc panic.
+SET loads a live set (UK drum and bass, hardtekno tribe); the pads 1-4 on the
+top bar, or Alt+1..8, change scene on every instrument together.

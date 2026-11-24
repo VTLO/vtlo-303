@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Fully offline studio (bass line + drum machine with bundled kits): no INTERNET
+    <!-- Fully offline studio (bass lines, wobble synth, drum machines with bundled kits, sampler, effects): no INTERNET
          or storage permissions. WAV export goes through the Storage Access Framework. -->
 
     <application
