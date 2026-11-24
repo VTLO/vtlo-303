@@ -28,7 +28,7 @@ import kotlin.math.abs
 import kotlin.math.min
 
 /**
- * Records the French video guide from the real app: a scripted session of clicks, drags and pad taps
+ * Records the English video guide from the real app: a scripted session of clicks, drags and pad taps
  * goes through the same pointer path as a mouse, the audio is rendered offline in step with every
  * frame, and each frame is a snapshot of the window with a caption bar. The output is a PNG
  * sequence and a WAV that ffmpeg turns into the lightweight clips (see tools/make-guide-video.sh).
@@ -72,10 +72,21 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
 
     private var now = 0.0
 
+    // The transport: when it last started (beat 0), and the beat a scripted pad tap is meant to land on.
+    private var playStart = 0.0
+    private var wasPlaying = false
+    @Volatile private var plannedBeat = 0.0
+
+    private fun beatAt(t: Double) = (t - playStart) * GuideMusic.BPM / 60.0
+    private fun timeOf(beat: Double) = playStart + beat * 60.0 / GuideMusic.BPM
+
     // ─── The script ──────────────────────────────────────────
 
+    /** Schedules [run] at video time [t]; also fine while the session is running (the list stays ordered). */
     private fun at(t: Double, run: () -> Unit) {
-        events.add(Ev(t, run))
+        var i = events.size
+        while (i > next && events[i - 1].t > t) i--
+        events.add(i, Ev(t, run))
     }
 
     private fun caption(t: Double, text: String) {
@@ -132,9 +143,41 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
 
     private fun tab(name: String) = pad(name)
 
+    private fun runPad(): Widget? = pad("RUN") ?: pad("STOP")
+
+    private fun setPart(engine: com.vtlo.core.audio.SequencerEngine, on: Boolean) {
+        studio.engine.partOf(engine).on = on
+    }
+
+    /** One tap on a deck pad, planned for transport beat [beat]: the pointer clicks it and the loop records it exactly there. */
+    private fun tapPad(beat: Double, index: Int) {
+        val t = timeOf(beat)
+        at(t - 0.2) {
+            window.scriptWidgets().filterIsInstance<MpcPad>().firstOrNull { it.index == index }?.let { moveTo(center(it).first, center(it).second, 0.12) }
+        }
+        at(t) {
+            val w = window.scriptWidgets().filterIsInstance<MpcPad>().firstOrNull { it.index == index } ?: return@at
+            px = center(w).first; py = center(w).second
+            fromX = px; fromY = py; toX = px; toY = py
+            plannedBeat = beat
+            rippleAt = now
+            window.scriptPointer(0, px, py)
+            pressed = true
+        }
+        at(t + 0.08) {
+            window.scriptPointer(2, px, py)
+            pressed = false
+        }
+    }
+
     private fun script() {
-        // The title card runs until 3.0 s.
-        caption(3.2, "Six écrans : basses, batteries, sampler et effets")
+        // Music: the transport starts under the title card, the drums alone; parts join one by one.
+        at(0.6) { window.toggleTransport() }
+        at(5.0) { setPart(studio.bass, true) }
+        at(7.2) { setPart(studio.sampler, true) }
+
+        // The title card runs until 3.4 s.
+        caption(3.2, "Six screens: basses, drums, sampler and effects")
         click(4.0) { tab("BASS 2") }
         click(5.0) { tab("DRUMS 1") }
         click(6.0) { tab("DRUMS 2") }
@@ -142,57 +185,61 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
         click(8.0) { tab("FX") }
         click(9.0) { tab("DRUMS 1") }
 
-        caption(9.8, "RUN lance tous les instruments, calés sur le même tempo")
-        click(10.6) { pad("RUN") }
+        // RUN stops everything (a breakdown), and starts everything again, in sync (the drop).
+        caption(9.8, "RUN starts every instrument, locked to the same tempo")
+        click(10.4) { runPad() }
+        at(11.4) { setPart(studio.bass2, true); setPart(studio.drums2, true) }
+        click(11.9) { runPad() }
 
-        // Program a few rim-shot steps on the drum grid.
-        caption(13.0, "Cliquez sur un pas pour le programmer")
-        for ((k, step) in intArrayOf(2, 6, 10, 14).withIndex()) {
-            click(13.8 + k * 0.9, lead = 0.6) {
-                // Track 5 (RS): rows are 29.5 high from y = 288; steps are 52 wide from x = 152.
-                window.scriptWidgets().filterIsInstance<GridStep>().firstOrNull { abs(it.y - (288f + 4 * 29.5f)) < 1f && abs(it.x - (152f + step * 52f)) < 1f }
+        // The tribal toms are programmed live: 3 + 3 + 3 + 3 + 4 steps.
+        caption(13.4, "Click a step to program it")
+        for ((k, step) in intArrayOf(0, 3, 6, 9, 12).withIndex()) {
+            click(14.2 + k * 0.8, lead = 0.55) {
+                window.scriptWidgets().filterIsInstance<GridStep>().firstOrNull { abs(it.y - (288f + 2 * 29.5f)) < 1f && abs(it.x - (152f + step * 52f)) < 1f }
             }
         }
 
-        caption(18.0, "Glissez un bouton pour façonner le son")
-        click(18.2) { tab("BASS 1") }
-        drag(19.8, 1.5, 0f, -85f) { knobLabelled("CUT OFF") }
-        drag(21.8, 1.1, 0f, 60f) { knobLabelled("CUT OFF") }
-        drag(23.0, 1.2, 0f, -70f) { knobLabelled("RESO") }
+        caption(18.6, "Drag a knob to shape the sound")
+        click(18.8) { tab("BASS 1") }
+        drag(20.4, 1.5, 0f, -85f) { knobLabelled("CUT OFF") }
+        drag(22.4, 1.1, 0f, 60f) { knobLabelled("CUT OFF") }
+        drag(23.6, 1.2, 0f, -70f) { knobLabelled("RESO") }
 
-        caption(24.6, "Sous chaque instrument, ▲ PADS ouvre 16 pads")
-        click(25.0) { tab("DRUMS 1") }
-        click(26.4) { pad("▲  PADS") }
+        caption(25.2, "Under each instrument, ▲ PADS opens 16 pads")
+        click(25.6) { tab("DRUMS 1") }
+        click(27.0) { pad("▲  PADS") }
 
-        caption(27.6, "Armez REC puis tapez un rythme : il se grave en boucle (8 ou 16 mesures)")
-        click(28.4) { pad("REC") }
-        // Tapped rhythm: kick, snare, hats (pads 1, 2, 6) and a closed-hat flourish.
-        val taps = listOf(
-            29.3 to 0, 29.55 to 5, 30.1 to 1, 30.35 to 5, 30.9 to 0, 31.15 to 5, 31.7 to 1, 31.95 to 6,
-            32.5 to 0, 32.75 to 5, 33.3 to 1, 33.55 to 3, 34.1 to 0,
-        )
-        for ((t, index) in taps) click(t, lead = 0.2) { window.scriptWidgets().filterIsInstance<MpcPad>().firstOrNull { it.index == index } }
-        click(35.2) { pad("REC") }
+        caption(28.2, "Arm REC, then tap a rhythm: it's recorded as a loop of 8 or 16 bars")
+        click(29.0) { pad("REC") }
+        // A tribal percussion phrase over two bars, planned on the 16th grid: rim shots, accented claps, an open hat.
+        at(29.6) {
+            val base = Math.ceil(beatAt(31.2) / 4.0) * 4.0
+            val phrase = listOf(
+                0.75 to 4, 1.5 to 4, 2.0 to 11, 2.75 to 4, 3.5 to 4,
+                4.75 to 4, 5.5 to 4, 6.0 to 11, 6.75 to 6, 7.25 to 4, 7.5 to 3,
+            )
+            for ((offset, pad) in phrase) tapPad(base + offset, pad)
+            click(timeOf(base + 8.0) + 1.0) { pad("REC") } // disarm after the phrase
+        }
 
-        caption(36.0, "Le rythme boucle, couche après couche ; UNDO annule, CLEAR efface")
-        click(37.0) { pad("16 BARS") }
-        click(38.0) { pad("8 BARS") }
+        caption(36.2, "The loop keeps playing, layer after layer; UNDO and CLEAR fix mistakes")
+        click(38.4) { pad("16 BARS") }
+        click(39.4) { pad("8 BARS") }
 
-        caption(39.4, "L'onglet FX : six effets sur tout le mix, SYNC les cale sur le tempo")
-        click(39.6) { tab("FX") }
-        click(41.2) { fxToggle(3) } // flanger on
-        click(42.3) { pad("SYNC", 3) }
-        drag(43.4, 1.0, 0f, -34f) { knob(3 * 4) } // flanger rate: now a note length
-        click(45.0) { fxToggle(4) } // chorus on
-        click(46.1) { fxToggle(5) } // ghost on
-
-        events.sortBy { it.t }
+        caption(45.0, "FX tab: six effects on the whole mix; SYNC locks them to the tempo")
+        click(45.2) { tab("FX") }
+        click(46.8) { fxToggle(3) } // flanger on
+        click(47.9) { pad("SYNC", 3) }
+        drag(49.0, 1.0, 0f, -34f) { knob(3 * 4) } // flanger rate: now a note length
+        click(50.6) { fxToggle(4) } // chorus on
+        click(51.7) { fxToggle(5) } // ghost on: reversed echoes
+        click(53.0) { fxToggle(0) } // beat repeat on: a stutter roll to the end
     }
 
     private fun fxToggle(i: Int): Widget? = window.scriptWidgets().filterIsInstance<Pad>().filter { it.text == "OFF" || it.text == "ON" }.getOrNull(i)
 
-    private val endAt = 48.0
-    private val totalSeconds = 50.5
+    private val endAt = 56.0
+    private val totalSeconds = 58.5
 
     // ─── Running ─────────────────────────────────────────────
 
@@ -200,6 +247,7 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
     fun record(dir: File) {
         dir.mkdirs()
         script()
+        studio.engine.tapBeatSource = { plannedBeat }
         val frames = (totalSeconds * fps).toInt()
         val audio = ByteArray(frames * chunk * 4)
         val start = System.nanoTime()
@@ -237,6 +285,9 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
     private fun step(k: Int): BufferedImage {
         now = k.toDouble() / fps
         while (next < events.size && events[next].t <= now) events[next++].run()
+        // The transport starts inside an event of this frame, so this frame's audio chunk begins beat 0.
+        if (window.playing && !wasPlaying) playStart = now
+        wasPlaying = window.playing
         // Pointer: a drag overrides the tween while it lasts.
         if (dragStart >= 0) {
             val u = ((now - dragStart) / dragLen).coerceIn(0.0, 1.0)
@@ -261,8 +312,8 @@ class GuideVideo(private val window: StudioWindow, private val studio: Studio) {
         g.drawImage(ui, 0, 0, null)
         drawCaption(g)
         // The title card fades out into the app; the end card fades in over it.
-        if (now < 3.4) card(g, "VTLO 3O3", "Guide vidéo", "le studio de poche en 50 secondes", alpha = ((3.4 - now) / 0.6).coerceIn(0.0, 1.0))
-        if (now > endAt - 0.6) card(g, "Bonne session !", "VTLO 3O3", "github.com/VTLO/vtlo-303", alpha = ((now - (endAt - 0.6)) / 0.6).coerceIn(0.0, 1.0), coinBack = true)
+        if (now < 3.4) card(g, "VTLO 3O3", "Video guide", "the pocket studio in under a minute", alpha = ((3.4 - now) / 0.6).coerceIn(0.0, 1.0))
+        if (now > endAt - 0.6) card(g, "Have fun!", "VTLO 3O3", "github.com/VTLO/vtlo-303", alpha = ((now - (endAt - 0.6)) / 0.6).coerceIn(0.0, 1.0), coinBack = true)
         g.dispose()
         return out
     }

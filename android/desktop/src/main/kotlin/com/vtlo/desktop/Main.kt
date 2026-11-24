@@ -24,6 +24,7 @@ fun main(args: Array<String>) {
         runCatching { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()) }
         val dataDir = if (video != null) File(video, "data") else if (shots != null) File(shots, "data") else Studio.defaultDataDir()
         val studio = if (video != null) Studio(dataDir, sampleRate = 48000).also { it.props["ui.guideSeen"] = "true" } else Studio(dataDir)
+        if (video != null) GuideMusic.setUp(studio) // before the window, so the screens show the programmed patterns
         val window = StudioWindow(studio) { host -> listOf(BassScreen(host), BassScreen(host, 2), DrumScreen(host), DrumScreen(host, 2), SamplerScreen(host), FxScreen(host)) }
         if (video != null) {
             // The video guide: a scripted session on a fresh studio, off the UI thread so frames can be paced in real time.

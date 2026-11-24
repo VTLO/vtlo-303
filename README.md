@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="assets/guide.mp4" title="Guide vidéo, 50 s, avec le son"><img src="assets/guide.webp" width="640" alt="Guide vidéo : les écrans, programmer un motif, les pads et la boucle, les effets"></a>
+  <a href="assets/guide.mp4" title="Video guide, 58 s, with sound"><img src="assets/guide.webp" width="640" alt="Video guide: the six screens, programming a pattern, the pads and loop recorder, the effects"></a>
 </p>
 
 # VTLO 303

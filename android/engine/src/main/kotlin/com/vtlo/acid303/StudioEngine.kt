@@ -87,8 +87,12 @@ class StudioEngine(
      */
     @Volatile var tapLatencySeconds = 0.045
 
+    /** Replaces the clock for taps (used by the scripted video recording to land taps exactly on the grid). */
+    @Volatile var tapBeatSource: (() -> Double)? = null
+
     /** The transport position of a tap that happened [ageSeconds] ago, latency compensated. */
     fun tapBeat(ageSeconds: Double = 0.0): Double =
+        tapBeatSource?.invoke() ?:
         if (clockReset) 0.0 // the transport has just been started and the clock restarts on the next block
         else max(0.0, beatNow() - (ageSeconds + tapLatencySeconds) * blockBpm / 60.0)
 
